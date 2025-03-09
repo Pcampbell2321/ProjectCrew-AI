@@ -25,7 +25,7 @@ class ComplexityScorer {
   /**
    * Score a task's complexity
    * @param {Object} task - The task to score
-   * @returns {Number} - Complexity score (0-100)
+   * @returns {Object} - Complexity score and breakdown
    */
   async scoreTask(task) {
     // Extract text content from task
@@ -47,7 +47,22 @@ class ComplexityScorer {
       (contextScore * this.weights.contextDependency);
     
     // Normalize to 0-100 scale
-    return Math.min(Math.round(weightedScore), 100);
+    const score = Math.min(Math.round(weightedScore), 100);
+    
+    // Return score with breakdown
+    return {
+      score,
+      breakdown: {
+        components: {
+          length: lengthScore,
+          code: codeScore,
+          terms: termsScore,
+          structure: structuralScore,
+          context: contextScore
+        },
+        weights: this.weights
+      }
+    };
   }
 
   /**

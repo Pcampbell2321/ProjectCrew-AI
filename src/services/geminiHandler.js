@@ -54,24 +54,37 @@ class GeminiHandler {
    * @returns {Promise<Object>} - The API response
    */
   async callGeminiAPI(task, context, model) {
-    try {
-      const geminiModel = this.genAI.getGenerativeModel({
-        model: model.id,
-        generationConfig: {
-          temperature: model.temperature,
-          topK: model.topK,
-          topP: model.topP
+    const MAX_RETRIES = 3;
+    let attempt = 0;
+    
+    while (attempt < MAX_RETRIES) {
+      try {
+        const geminiModel = this.genAI.getGenerativeModel({
+          model: model.id,
+          safetySettings: this.getSafetySettings(context),
+          generationConfig: {
+            temperature: model.temperature,
+            topK: model.topK,
+            topP: model.topP,
+            maxOutputTokens: this.calculateTokenBudget(task)
+          }
+        });
+
+        const prompt = this.buildPrompt(task, context);
+        const result = await geminiModel.generateContent(prompt);
+        const response = result.response;
+
+        return this.parseResponse(response, model.id);
+      } catch (error) {
+        if (this.isRetryableError(error) && attempt < MAX_RETRIES - 1) {
+          attempt++;
+          console.log(`Retrying Gemini API call (attempt ${attempt + 1}/${MAX_RETRIES})...`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+          continue;
         }
-      });
-
-      const prompt = this.buildPrompt(task, context);
-      const result = await geminiModel.generateContent(prompt);
-      const response = result.response;
-
-      return this.parseResponse(response, model.id);
-    } catch (error) {
-      console.error('Error calling Gemini API:', error);
-      throw new Error(`Gemini API error: ${error.message}`);
+        console.error('Error calling Gemini API:', error);
+        throw new Error(`Gemini API error: ${error.message}`);
+      }
     }
   }
 
@@ -124,6 +137,40 @@ class GeminiHandler {
       model: modelId,
       type: 'gemini'
     };
+  }
+
+  /**
+   * Calculate token budget based on task complexity
+   * @param {Object} task - The task to process
+   * @returns {Number} - Token budget
+   */
+  calculateTokenBudget(task) {
+    const baseTokens = 2048;
+    const complexityBonus = task.complexity ? Math.floor(task.complexity / 100 * 1024) : 0;
+    return baseTokens + complexityBonus;
+  }
+
+  /**
+   * Get safety settings based on context
+   * @param {Object} context - Additional context
+   * @returns {Object} - Safety settings
+   */
+  getSafetySettings(context) {
+    return {
+      harassment: context.sensitive ? 'BLOCK_MEDIUM_AND_ABOVE' : 'BLOCK_ONLY_HIGH',
+      toxicity: 'BLOCK_LOW_AND_ABOVE'
+    };
+  }
+
+  /**
+   * Check if error is retryable
+   * @param {Error} error - The error to check
+   * @returns {Boolean} - Whether the error is retryable
+   */
+  isRetryableError(error) {
+    return error.code === 503 || 
+      (error.message && error.message.includes('quota')) ||
+      error.code === 429;
   }
 }
 

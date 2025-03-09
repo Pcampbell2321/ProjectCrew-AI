@@ -1,4 +1,5 @@
 const { google } = require('googleapis');
+const SecurityUtils = require('../services/securityUtils');
 
 class GoogleDriveService {
   constructor() {
@@ -123,12 +124,39 @@ class GoogleDriveService {
 
   async readFile(fileId) {
     try {
+      // First get file metadata to check if it's encrypted
+      const metadata = await this.drive.files.get({
+        fileId: fileId,
+        fields: 'name,properties'
+      });
+      
+      const isEncrypted = metadata.data.properties && 
+                          metadata.data.properties.encrypted === 'true';
+      
+      // Get file content
       const response = await this.drive.files.get({
         fileId: fileId,
         alt: 'media',
       });
+      
+      let content = response.data;
+      
+      // Decrypt if necessary
+      if (isEncrypted && process.env.ENCRYPTION_KEY) {
+        console.log(`Decrypting content for file: ${metadata.data.name}`);
+        content = SecurityUtils.decrypt(content, process.env.ENCRYPTION_KEY);
+        
+        // Try to parse JSON if it looks like JSON
+        if (content.startsWith('{') || content.startsWith('[')) {
+          try {
+            content = JSON.parse(content);
+          } catch (e) {
+            console.log('Content is not valid JSON after decryption');
+          }
+        }
+      }
 
-      return response.data;
+      return content;
     } catch (error) {
       console.error('Error reading file:', error);
       throw error;
@@ -156,18 +184,32 @@ class GoogleDriveService {
       const folderId = subfolder ? await this.getSubfolderId(subfolder) : this.workFolderId;
       const complexityScore = await this.calculateComplexity(content);
       
+      // Check if content should be encrypted
+      const shouldEncrypt = this.shouldEncryptContent(fileName, mimeType);
+      let processedContent = content;
+      
+      if (shouldEncrypt && process.env.ENCRYPTION_KEY) {
+        console.log(`Encrypting sensitive content for file: ${fileName}`);
+        const contentStr = typeof content === 'string' ? content : JSON.stringify(content);
+        processedContent = SecurityUtils.encrypt(contentStr, process.env.ENCRYPTION_KEY);
+        mimeType = 'application/octet-stream'; // Change mime type for encrypted content
+      } else {
+        processedContent = typeof content === 'string' ? content : JSON.stringify(content);
+      }
+      
       const fileMetadata = {
         name: fileName,
         parents: [folderId],
         properties: { 
           ai_model: modelVersion,
-          complexity_score: complexityScore.toString()
+          complexity_score: complexityScore.toString(),
+          encrypted: shouldEncrypt ? 'true' : 'false'
         }
       };
 
       const media = {
         mimeType: mimeType,
-        body: typeof content === 'string' ? content : JSON.stringify(content),
+        body: processedContent,
       };
 
       const response = await this.drive.files.create({
@@ -187,6 +229,46 @@ class GoogleDriveService {
     // Simple heuristic - adjust based on your needs
     const text = typeof content === 'string' ? content : JSON.stringify(content);
     return Math.min(Math.floor(text.length / 100) + (text.match(/\n/g) || []).length, 100);
+  }
+  
+  /**
+   * Determine if content should be encrypted
+   * @param {String} fileName - Name of the file
+   * @param {String} mimeType - MIME type of the content
+   * @returns {Boolean} - Whether content should be encrypted
+   */
+  shouldEncryptContent(fileName, mimeType) {
+    // Encrypt sensitive file types
+    const sensitiveTypes = [
+      'application/json',
+      'text/plain',
+      'application/x-yaml',
+      'application/xml'
+    ];
+    
+    // Encrypt files with sensitive names
+    const sensitivePatterns = [
+      /credential/i,
+      /secret/i,
+      /key/i,
+      /password/i,
+      /token/i,
+      /auth/i,
+      /private/i,
+      /sensitive/i
+    ];
+    
+    // Check MIME type
+    if (sensitiveTypes.includes(mimeType)) {
+      // Check filename against patterns
+      for (const pattern of sensitivePatterns) {
+        if (pattern.test(fileName)) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
   }
 
   async updateFile(fileId, content, mimeType, modelVersion = 'unknown') {
