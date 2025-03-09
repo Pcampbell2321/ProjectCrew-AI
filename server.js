@@ -8,6 +8,7 @@ dotenv.config();
 const projectRoutes = require('./src/routes/projectRoutes');
 const planningRoutes = require('./src/routes/planningRoutes');
 const codeReviewRoutes = require('./src/routes/codeReviewRoutes');
+const codeSearchRoutes = require('./src/routes/codeSearchRoutes');
 
 // Initialize express
 const app = express();
@@ -17,6 +18,7 @@ app.use(express.json());
 app.use('/api/project', projectRoutes);
 app.use('/api/planning', planningRoutes);
 app.use('/api/code-review', codeReviewRoutes);
+app.use('/api/code-search', codeSearchRoutes);
 
 // Basic route
 app.get('/', (req, res) => {
