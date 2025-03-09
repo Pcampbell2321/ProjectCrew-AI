@@ -3,7 +3,7 @@ const axios = require('axios');
 class CodeGenerationAgent {
   constructor(apiKey) {
     this.apiKey = apiKey;
-    this.model = 'claude-3-7-sonnet-20240620'; // Using Claude 3.7 Sonnet for superior code generation
+    this.model = 'claude-3-7-sonnet-20250219'; // Using Claude 3.7 Sonnet for superior code generation
     this.baseUrl = 'https://api.anthropic.com/v1';
   }
 
