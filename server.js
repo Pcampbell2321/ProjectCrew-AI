@@ -6,7 +6,8 @@ dotenv.config();
 
 // Import routes
 const projectRoutes = require('./src/routes/projectRoutes');
-const planningRoutes = require('./src/routes/planningRoutes'); // Add this line
+const planningRoutes = require('./src/routes/planningRoutes');
+const codeReviewRoutes = require('./src/routes/codeReviewRoutes');
 
 // Initialize express
 const app = express();
@@ -15,6 +16,7 @@ app.use(express.json());
 // Register routes
 app.use('/api/project', projectRoutes);
 app.use('/api/planning', planningRoutes);
+app.use('/api/code-review', codeReviewRoutes);
 
 // Basic route
 app.get('/', (req, res) => {
