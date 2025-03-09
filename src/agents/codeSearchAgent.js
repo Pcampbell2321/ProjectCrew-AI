@@ -57,16 +57,30 @@ class CodeSearchAgent {
     }
   }
 
-  async explainCode(code, context = {}) {
+  async explainCode(code, language = 'javascript', context = {}) {
     try {
       console.log('Explaining code snippet');
       
       const systemPrompt = this._buildExplainSystemPrompt();
-      const userPrompt = this._buildExplainUserPrompt(code, context);
+      const userPrompt = this._buildExplainUserPrompt(code, language, context);
       const response = await this._callClaudeAPI(systemPrompt, userPrompt);
       return this._parseExplainResponse(response);
     } catch (error) {
       console.error('Error in code explanation:', error);
+      throw error;
+    }
+  }
+
+  async generateCode(description, language, context = {}) {
+    try {
+      console.log('Generating code from description');
+      
+      const systemPrompt = this._buildGenerateSystemPrompt();
+      const userPrompt = this._buildGenerateUserPrompt(description, language, context);
+      const response = await this._callClaudeAPI(systemPrompt, userPrompt);
+      return this._parseGenerateResponse(response);
+    } catch (error) {
+      console.error('Error in code generation:', error);
       throw error;
     }
   }
@@ -119,17 +133,17 @@ Return your response as JSON with the following structure:
   }
 
   _buildExplainSystemPrompt() {
-    return `You are a Code Explanation Agent specializing in Zoho Creator's Deluge scripting language.
-    Your task is to explain code snippets in clear, concise language that non-technical users can understand.
+    return `You are a Code Explanation Agent specializing in software development.
+    Your task is to explain code snippets in clear, concise language that both technical and non-technical users can understand.
     Always format your responses as valid JSON without trailing commas or syntax errors.
     Focus on explaining what the code does, not just how it works.`;
   }
 
-  _buildExplainUserPrompt(code, context) {
+  _buildExplainUserPrompt(code, language, context) {
     return `
-Please explain this code snippet in simple terms:
+Please explain this ${language} code snippet in simple terms:
 
-\`\`\`
+\`\`\`${language}
 ${code}
 \`\`\`
 
@@ -151,6 +165,30 @@ Return your explanation as JSON with the following structure:
 }`;
   }
 
+  _buildGenerateSystemPrompt() {
+    return `You are a Code Generation Agent specializing in software development.
+    Your task is to generate high-quality, well-documented code based on natural language descriptions.
+    Always format your responses as valid JSON without trailing commas or syntax errors.
+    Focus on creating clean, efficient, and secure code that follows best practices.`;
+  }
+
+  _buildGenerateUserPrompt(description, language, context) {
+    return `
+Please generate ${language} code based on this description:
+${description}
+
+Additional context:
+${JSON.stringify(context, null, 2)}
+
+Return your response as JSON with the following structure:
+{
+  "code": "The generated code with proper formatting and comments",
+  "explanation": "Explanation of how the code works",
+  "usage_example": "Example of how to use the code",
+  "considerations": ["Important consideration 1", "Important consideration 2"]
+}`;
+  }
+
   async _callClaudeAPI(systemPrompt, userPrompt) {
     try {
       console.log('Making API request to Claude...');
@@ -159,7 +197,7 @@ Return your explanation as JSON with the following structure:
       
       const data = {
         model: this.model,
-        max_tokens: 1000,
+        max_tokens: 1500,
         temperature: 0.2, // Lower temperature for more precise code-related responses
         system: systemPrompt,
         messages: [
@@ -255,6 +293,46 @@ Return your explanation as JSON with the following structure:
     }
   }
 
+  _parseGenerateResponse(response) {
+    try {
+      console.log('Parsing Claude response...');
+      
+      if (!response.content || response.content.length === 0) {
+        throw new Error('No content in Claude response');
+      }
+      
+      const textResponse = response.content[0].text;
+      
+      // Try to find JSON in the response
+      const jsonMatch = textResponse.match(/```json\n([\s\S]*?)\n```/) || 
+                        textResponse.match(/{[\s\S]*?}/);
+      
+      if (jsonMatch) {
+        const jsonText = jsonMatch[1] || jsonMatch[0];
+        return JSON.parse(jsonText);
+      } else {
+        // If no JSON is found, try to extract code blocks
+        const codeMatch = textResponse.match(/```[\w]*\n([\s\S]*?)\n```/);
+        if (codeMatch) {
+          return {
+            code: codeMatch[1],
+            explanation: "Generated code based on your description",
+            usage_example: "See the code comments for usage examples",
+            considerations: ["This code was extracted from a non-JSON response"]
+          };
+        } else {
+          throw new Error('Could not extract JSON or code from Claude response');
+        }
+      }
+    } catch (error) {
+      console.error('Error parsing Claude response:', error);
+      
+      // Fall back to mock data
+      console.log('Falling back to mock data');
+      return this._generateMockGenerateResponse();
+    }
+  }
+
   _generateMockSearchResponse() {
     return {
       relevant_snippets: [
@@ -303,6 +381,66 @@ Return your explanation as JSON with the following structure:
         "Add try-catch blocks for error handling",
         "Add logging for audit purposes",
         "Validate the rental ID before processing"
+      ]
+    };
+  }
+
+  _generateMockGenerateResponse() {
+    return {
+      code: `function createUser(userData) {
+  // Validate required fields
+  if (!userData.name || !userData.email) {
+    return { success: false, error: "Name and email are required" };
+  }
+  
+  try {
+    // Create user record
+    const userMap = Map();
+    userMap.put("Name", userData.name);
+    userMap.put("Email", userData.email);
+    userMap.put("Role", userData.role || "User");
+    userMap.put("Status", "Active");
+    userMap.put("CreatedDate", zoho.currentdate);
+    
+    // Insert record into Zoho Creator
+    const createResponse = zoho.creator.createRecord("your_app", "Users", userMap);
+    
+    if (createResponse.get("code") == "success") {
+      return { 
+        success: true, 
+        userId: createResponse.get("details").get("ID") 
+      };
+    } else {
+      return { 
+        success: false, 
+        error: createResponse.get("message") 
+      };
+    }
+  } catch (e) {
+    return { 
+      success: false, 
+      error: "Failed to create user: " + e.toString() 
+    };
+  }
+}`,
+      explanation: "This function creates a new user in the Zoho Creator application. It validates required fields, creates a map with user data, inserts the record into the database, and returns a success or error response.",
+      usage_example: `// Example usage:
+const result = createUser({
+  name: "John Doe",
+  email: "john.doe@example.com",
+  role: "Admin"
+});
+
+if (result.success) {
+  info "User created with ID: " + result.userId;
+} else {
+  info "Error: " + result.error;
+}`,
+      considerations: [
+        "Add additional validation for email format",
+        "Consider adding unique email check before creating",
+        "You may need to adjust field names to match your actual schema",
+        "Add logging for audit purposes"
       ]
     };
   }

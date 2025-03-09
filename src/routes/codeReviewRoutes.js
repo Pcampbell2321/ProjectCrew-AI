@@ -26,4 +26,25 @@ router.post('/review', async (req, res) => {
   }
 });
 
+// Route to suggest improvements
+router.post('/suggest-improvements', async (req, res) => {
+  try {
+    const { code, language, context } = req.body;
+    
+    if (!code) {
+      return res.status(400).json({ error: 'Code snippet is required' });
+    }
+    
+    if (!language) {
+      return res.status(400).json({ error: 'Programming language is required' });
+    }
+    
+    const suggestions = await codeReviewAgent.suggestImprovements(code, language, context || {});
+    res.json({ suggestions });
+  } catch (error) {
+    console.error('Error in improvement suggestions route:', error);
+    res.status(500).json({ error: 'Failed to suggest improvements' });
+  }
+});
+
 module.exports = router;

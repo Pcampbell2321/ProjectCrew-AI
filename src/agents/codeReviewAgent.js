@@ -12,11 +12,25 @@ class CodeReviewAgent {
       console.log('Reviewing code...');
       
       const systemPrompt = this._buildSystemPrompt();
-      const userPrompt = this._buildUserPrompt(codeSnippet, language, requirements);
+      const userPrompt = this._buildReviewPrompt(codeSnippet, language, requirements);
       const response = await this._callClaudeAPI(systemPrompt, userPrompt);
       return this._parseResponse(response);
     } catch (error) {
       console.error('Error in code review agent:', error);
+      throw error;
+    }
+  }
+
+  async suggestImprovements(codeSnippet, language, context = {}) {
+    try {
+      console.log('Suggesting code improvements...');
+      
+      const systemPrompt = this._buildSystemPrompt();
+      const userPrompt = this._buildImprovementPrompt(codeSnippet, language, context);
+      const response = await this._callClaudeAPI(systemPrompt, userPrompt);
+      return this._parseResponse(response);
+    } catch (error) {
+      console.error('Error in code improvement agent:', error);
       throw error;
     }
   }
@@ -28,7 +42,7 @@ class CodeReviewAgent {
     Do not include backticks or any text outside the JSON structure.`;
   }
 
-  _buildUserPrompt(codeSnippet, language, requirements) {
+  _buildReviewPrompt(codeSnippet, language, requirements) {
     return `
 Please review this ${language} code snippet against the provided requirements.
 
@@ -62,6 +76,40 @@ Return ONLY valid JSON without trailing commas, using this exact format:
   ],
   "strengths": ["Strength 1", "Strength 2"],
   "improvement_suggestions": ["Suggestion 1", "Suggestion 2"]
+}`;
+  }
+
+  _buildImprovementPrompt(codeSnippet, language, context) {
+    return `
+Please suggest improvements for this ${language} code:
+\`\`\`${language}
+${codeSnippet}
+\`\`\`
+
+Additional context:
+${JSON.stringify(context, null, 2)}
+
+Focus on:
+1. Refactoring opportunities
+2. Performance optimizations
+3. Better design patterns
+4. Modern language features that could be used
+5. Improved error handling and robustness
+
+Return your suggestions as JSON with these sections:
+{
+  "refactoring": [
+    {
+      "description": "Description of the refactoring",
+      "current_code": "Current implementation",
+      "improved_code": "Improved implementation",
+      "benefits": ["Benefit 1", "Benefit 2"]
+    }
+  ],
+  "optimizations": ["Optimization 1", "Optimization 2"],
+  "design_patterns": ["Applicable pattern 1", "Applicable pattern 2"],
+  "modern_features": ["Feature 1", "Feature 2"],
+  "error_handling": ["Suggestion 1", "Suggestion 2"]
 }`;
   }
 
@@ -142,11 +190,20 @@ Return ONLY valid JSON without trailing commas, using this exact format:
         } catch (jsonError) {
           console.error('JSON parse error:', jsonError.message);
           console.error('Attempted to parse:', jsonText);
-          throw jsonError;
+          
+          // If JSON parsing fails, return a structured error response
+          return {
+            error: "Failed to parse JSON response",
+            message: jsonError.message,
+            partial_response: jsonText.substring(0, 200) + "..."
+          };
         }
       } else {
         console.error('Could not extract JSON from Claude response');
-        throw new Error('Could not extract JSON from Claude response');
+        return {
+          error: "No JSON found in response",
+          raw_response: textResponse.substring(0, 200) + "..."
+        };
       }
     } catch (error) {
       console.error('Error parsing Claude response:', error);
