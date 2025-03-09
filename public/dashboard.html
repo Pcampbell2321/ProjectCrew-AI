@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Zoho AI Platform</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
+</head>
+<body>
+  <div class="dashboard-container">
+    <nav class="sidebar">
+      <div class="logo">
+        <h2>Zoho AI</h2>
+      </div>
+      <ul class="nav-links">
+        <li class="active"><a href="#tasks">Tasks</a></li>
+        <li><a href="#history">History</a></li>
+        <li><a href="#drive">Drive Files</a></li>
+        <li><a href="#settings">Settings</a></li>
+      </ul>
+      <div class="user-info">
+        <img id="userAvatar" src="/img/default-avatar.png" alt="User avatar">
+        <span id="userName">User</span>
+        <a href="/logout" class="logout-btn">Logout</a>
+      </div>
+    </nav>
+    
+    <main class="content">
+      <header class="dashboard-header">
+        <h1>AI Task Dashboard</h1>
+        <div class="actions">
+          <button id="refreshBtn">Refresh</button>
+          <button id="newTaskBtn" class="primary">New Task</button>
+        </div>
+      </header>
+      
+      <div class="task-container">
+        <div class="task-input">
+          <h2>Submit New Task</h2>
+          <textarea id="taskContent" placeholder="Describe your task..."></textarea>
+          <div class="context-options">
+            <label>
+              <input type="checkbox" id="requireReasoning"> Requires Deep Reasoning
+            </label>
+            <div class="select-wrapper">
+              <label for="complexityOverride">Complexity:</label>
+              <select id="complexityOverride">
+                <option value="auto">Auto-detect Complexity</option>
+                <option value="low">Low Complexity</option>
+                <option value="medium">Medium Complexity</option>
+                <option value="high">High Complexity</option>
+              </select>
+            </div>
+          </div>
+          <button id="submitTaskBtn" class="primary">Process Task</button>
+        </div>
+        
+        <div class="result-display">
+          <div class="model-metadata">
+            <span id="modelUsed"></span>
+            <span id="complexityScore"></span>
+            <span id="processingTime"></span>
+          </div>
+          <div class="ai-output" id="aiOutput"></div>
+          <div class="action-buttons">
+            <button id="saveToDriveBtn" disabled>Save to Drive</button>
+            <button id="exportToZohoBtn" disabled>Export to Zoho</button>
+            <button id="copyBtn" disabled>Copy to Clipboard</button>
+          </div>
+        </div>
+      </div>
+      
+      <div class="history-container" style="display: none;">
+        <h2>Task History</h2>
+        <div id="historyList" class="history-list"></div>
+      </div>
+    </main>
+  </div>
+  
+  <script src="/js/dashboard.js"></script>
+</body>
+</html>

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const aiOrchestrator = require('../services/aiOrchestrator');
+const driveService = require('../utils/googleDriveService');
 
 /**
  * @route POST /api/ai/process
@@ -20,6 +21,41 @@ router.post('/process', async (req, res) => {
   } catch (error) {
     console.error('Error processing AI task:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * @route POST /api/ai/save
+ * @desc Save AI result to Google Drive
+ * @access Public
+ */
+router.post('/save', async (req, res) => {
+  try {
+    const { task, result, timestamp } = req.body;
+    
+    if (!task || !result) {
+      return res.status(400).json({ error: 'Task and result are required' });
+    }
+    
+    // Create a filename based on timestamp and task content
+    const taskPreview = typeof task.content === 'string' 
+      ? task.content.substring(0, 30).replace(/[^a-z0-9]/gi, '_')
+      : 'task';
+    const filename = `AI_Result_${new Date().toISOString().replace(/:/g, '-')}_${taskPreview}.json`;
+    
+    // Save to Google Drive
+    const fileId = await driveService.createFile(
+      filename,
+      { task, result, timestamp },
+      'application/json',
+      'AI_Results',
+      result.model
+    );
+    
+    res.json({ success: true, fileId });
+  } catch (error) {
+    console.error('Error saving to Drive:', error);
+    res.status(500).json({ error: 'Failed to save to Drive' });
   }
 });
 

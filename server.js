@@ -1,5 +1,12 @@
 const express = require('express');
 const dotenv = require('dotenv');
+const session = require('express-session');
+const passport = require('passport');
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const path = require('path');
+const csurf = require('csurf');
+const { body, validationResult } = require('express-validator');
+const fileUpload = require('express-fileupload');
 
 // Load environment variables
 dotenv.config();
@@ -19,13 +26,61 @@ const aiProcessingRoutes = require('./src/routes/aiProcessingRoutes');
 // Initialize express
 const app = express();
 app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(fileUpload({
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  useTempFiles: true,
+  tempFileDir: '/tmp/'
+}));
 
 // Security headers
 app.use((req, res, next) => {
   res.header('X-Content-Type-Options', 'nosniff');
   res.header('Strict-Transport-Security', 'max-age=63072000');
+  res.setHeader('Content-Security-Policy', 
+    "default-src 'self';" +
+    "script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline';" +
+    "style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline';" +
+    "img-src 'self' data:;");
   next();
 });
+
+// Session configuration
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'keyboard cat',
+  resave: false,
+  saveUninitialized: true,
+  cookie: { secure: process.env.NODE_ENV === 'production' }
+}));
+
+// Authentication middleware
+app.use(passport.initialize());
+app.use(passport.session());
+
+// CSRF protection
+app.use(csurf({ cookie: true }));
+
+// Passport serialization
+passport.serializeUser((user, done) => {
+  done(null, user);
+});
+
+passport.deserializeUser((user, done) => {
+  done(null, user);
+});
+
+// Google OAuth strategy
+passport.use(new GoogleStrategy({
+    clientID: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    callbackURL: '/auth/google/callback',
+    scope: ['profile', 'email'],
+    state: true
+  },
+  (accessToken, refreshToken, profile, done) => {
+    return done(null, profile);
+  }
+));
 
 // Register routes
 app.use('/api/project', projectRoutes);
@@ -66,10 +121,69 @@ app.get('/api/drive/files', async (req, res) => {
   }
 });
 
+// Authentication routes
+app.get('/auth/google',
+  passport.authenticate('google', { 
+    prompt: 'select_account',
+    accessType: 'offline' 
+  })
+);
+
+app.get('/auth/google/callback', 
+  passport.authenticate('google', { failureRedirect: '/login' }),
+  (req, res) => res.redirect('/dashboard')
+);
+
+app.get('/logout', (req, res) => {
+  req.logout((err) => {
+    if (err) { return next(err); }
+    res.redirect('/');
+  });
+});
+
+// Web UI routes
+app.get('/dashboard', ensureAuthenticated, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/dashboard.html'));
+});
+
+app.get('/login', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/login.html'));
+});
+
+// Secure file upload endpoint
+app.post('/api/upload', ensureAuthenticated, (req, res) => {
+  if (!req.files || !req.files.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+
+  const uploadedFile = req.files.file;
+  const sanitizedName = sanitizeFilename(uploadedFile.name);
+  
+  driveService.createFile(sanitizedName, uploadedFile.data, uploadedFile.mimetype)
+    .then(fileId => res.json({ success: true, fileId }))
+    .catch(error => res.status(500).json({ error: 'Upload failed' }));
+});
+
+// CSRF token endpoint
+app.get('/api/csrf-token', ensureAuthenticated, (req, res) => {
+  res.json({ csrfToken: req.csrfToken() });
+});
+
 // Basic route
 app.get('/', (req, res) => {
-  res.json({ message: 'Zoho AI Platform API is running' });
+  res.sendFile(path.join(__dirname, 'public/index.html'));
 });
+
+// Authentication middleware
+function ensureAuthenticated(req, res, next) {
+  if (req.isAuthenticated()) return next();
+  res.redirect('/login');
+}
+
+// Filename sanitization
+function sanitizeFilename(filename) {
+  return filename.replace(/[^a-z0-9.-]/gi, '_').substring(0, 255);
+}
 
 // Start server
 const PORT = process.env.PORT || 3000;
