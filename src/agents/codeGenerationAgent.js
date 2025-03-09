@@ -1,4 +1,5 @@
 const axios = require('axios');
+const driveService = require('../utils/googleDriveService');
 
 class CodeGenerationAgent {
   constructor(apiKey) {
@@ -14,7 +15,18 @@ class CodeGenerationAgent {
       const systemPrompt = this._buildGenerateSystemPrompt();
       const userPrompt = this._buildGenerateUserPrompt(requirements, context);
       const response = await this._callClaudeAPI(systemPrompt, userPrompt);
-      return this._parseGenerateResponse(response);
+      const generatedCode = this._parseGenerateResponse(response);
+      
+      // Save the generated code to Google Drive
+      const fileName = `generated_code_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+      await driveService.createOrUpdateFile(
+        fileName,
+        generatedCode,
+        'application/json',
+        'CodeSnippets'
+      );
+      
+      return generatedCode;
     } catch (error) {
       console.error('Error in code generation agent:', error);
       throw error;
@@ -28,7 +40,18 @@ class CodeGenerationAgent {
       const systemPrompt = this._buildImproveSystemPrompt();
       const userPrompt = this._buildImproveUserPrompt(code, requirements);
       const response = await this._callClaudeAPI(systemPrompt, userPrompt);
-      return this._parseImproveResponse(response);
+      const improvedCode = this._parseImproveResponse(response);
+      
+      // Save the improved code to Google Drive
+      const fileName = `improved_code_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+      await driveService.createOrUpdateFile(
+        fileName,
+        improvedCode,
+        'application/json',
+        'CodeSnippets'
+      );
+      
+      return improvedCode;
     } catch (error) {
       console.error('Error in code improvement:', error);
       throw error;

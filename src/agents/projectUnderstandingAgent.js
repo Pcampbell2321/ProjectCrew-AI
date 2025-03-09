@@ -1,4 +1,5 @@
 const axios = require('axios');
+const driveService = require('../utils/googleDriveService');
 
 class ProjectUnderstandingAgent {
   constructor(apiKey) {
@@ -8,11 +9,47 @@ class ProjectUnderstandingAgent {
     this.model = 'gemini-2.0-flash'; // Using the model from the sample
   }
 
-  async processDocument(document) {
+  async processDocument(documentNameOrId, isId = false) {
     try {
-      const prompt = this._buildPrompt(document);
+      let documentContent;
+      let documentName;
+      
+      if (isId) {
+        // Read document directly by ID
+        documentContent = await driveService.readFile(documentNameOrId);
+        const response = await driveService.drive.files.get({
+          fileId: documentNameOrId,
+          fields: 'name'
+        });
+        documentName = response.data.name;
+      } else if (typeof documentNameOrId === 'object' && documentNameOrId.content) {
+        // Direct content provided
+        documentContent = documentNameOrId.content;
+        documentName = documentNameOrId.name || 'document';
+      } else {
+        // Find document by name in the Work folder
+        const file = await driveService.findFileByName(documentNameOrId);
+        if (!file) {
+          throw new Error(`Document "${documentNameOrId}" not found in Work folder`);
+        }
+        documentContent = await driveService.readFile(file.id);
+        documentName = documentNameOrId;
+      }
+      
+      const prompt = this._buildPrompt(documentContent);
       const response = await this._callGeminiAPI(prompt);
-      return this._parseResponse(response);
+      const analysis = this._parseResponse(response);
+      
+      // Save the analysis to Google Drive
+      const analysisFileName = `${documentName.replace(/\.[^/.]+$/, '')}_analysis.json`;
+      await driveService.createOrUpdateFile(
+        analysisFileName,
+        analysis,
+        'application/json',
+        'ProjectAnalysis'
+      );
+      
+      return analysis;
     } catch (error) {
       console.error('Error in project understanding agent:', error);
       throw error;

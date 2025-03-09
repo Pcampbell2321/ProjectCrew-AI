@@ -1,4 +1,5 @@
 const axios = require('axios');
+const driveService = require('../utils/googleDriveService');
 
 class PlanningAgent {
   constructor(apiKey) {
@@ -7,14 +8,25 @@ class PlanningAgent {
     this.baseUrl = 'https://api.anthropic.com/v1';
   }
 
-  async generateTasks(projectSummary) {
+  async generateTasks(projectSummary, projectName = 'Project') {
     try {
       console.log('Generating tasks from project summary...');
       
       const systemPrompt = this._buildSystemPrompt();
       const userPrompt = this._buildUserPrompt(projectSummary);
       const response = await this._callClaudeAPI(systemPrompt, userPrompt);
-      return this._parseResponse(response);
+      const tasks = this._parseResponse(response);
+      
+      // Save the tasks to Google Drive
+      const tasksFileName = `${projectName.replace(/\s+/g, '_')}_tasks.json`;
+      await driveService.createOrUpdateFile(
+        tasksFileName,
+        tasks,
+        'application/json',
+        'Tasks'
+      );
+      
+      return tasks;
     } catch (error) {
       console.error('Error in planning agent:', error);
       throw error;
