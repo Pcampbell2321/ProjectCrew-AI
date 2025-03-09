@@ -9,6 +9,8 @@ const projectRoutes = require('./src/routes/projectRoutes');
 const planningRoutes = require('./src/routes/planningRoutes');
 const codeSearchRoutes = require('./src/routes/codeSearchRoutes');
 const codeGenerationRoutes = require('./src/routes/codeGenerationRoutes');
+const meetingActionItemRoutes = require('./src/routes/meetingActionItemRoutes');
+const documentationRoutes = require('./src/routes/documentationRoutes');
 
 // Initialize express
 const app = express();
@@ -19,6 +21,8 @@ app.use('/api/project', projectRoutes);
 app.use('/api/planning', planningRoutes);
 app.use('/api/code-search', codeSearchRoutes);
 app.use('/api/code-generation', codeGenerationRoutes);
+app.use('/api/meeting', meetingActionItemRoutes);
+app.use('/api/documentation', documentationRoutes);
 
 // Basic route
 app.get('/', (req, res) => {
