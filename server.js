@@ -10,6 +10,7 @@ const planningRoutes = require('./src/routes/planningRoutes');
 const codeReviewRoutes = require('./src/routes/codeReviewRoutes');
 const codeSearchRoutes = require('./src/routes/codeSearchRoutes');
 const codeExecutionRoutes = require('./src/routes/codeExecutionRoutes');
+const codeGenerationRoutes = require('./src/routes/codeGenerationRoutes');
 
 // Initialize express
 const app = express();
@@ -21,6 +22,7 @@ app.use('/api/planning', planningRoutes);
 app.use('/api/code-review', codeReviewRoutes);
 app.use('/api/code-search', codeSearchRoutes);
 app.use('/api/code-execution', codeExecutionRoutes);
+app.use('/api/code-generation', codeGenerationRoutes);
 
 // Basic route
 app.get('/', (req, res) => {
