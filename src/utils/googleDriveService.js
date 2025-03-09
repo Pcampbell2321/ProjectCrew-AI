@@ -151,13 +151,18 @@ class GoogleDriveService {
     }
   }
 
-  async createFile(fileName, content, mimeType, subfolder = null) {
+  async createFile(fileName, content, mimeType, subfolder = null, modelVersion = 'unknown') {
     try {
       const folderId = subfolder ? await this.getSubfolderId(subfolder) : this.workFolderId;
+      const complexityScore = await this.calculateComplexity(content);
       
       const fileMetadata = {
         name: fileName,
         parents: [folderId],
+        properties: { 
+          ai_model: modelVersion,
+          complexity_score: complexityScore.toString()
+        }
       };
 
       const media = {
@@ -178,8 +183,28 @@ class GoogleDriveService {
     }
   }
 
-  async updateFile(fileId, content, mimeType) {
+  async calculateComplexity(content) {
+    // Simple heuristic - adjust based on your needs
+    const text = typeof content === 'string' ? content : JSON.stringify(content);
+    return Math.min(Math.floor(text.length / 100) + (text.match(/\n/g) || []).length, 100);
+  }
+
+  async updateFile(fileId, content, mimeType, modelVersion = 'unknown') {
     try {
+      const complexityScore = await this.calculateComplexity(content);
+      
+      // Update file properties
+      await this.drive.files.update({
+        fileId: fileId,
+        resource: {
+          properties: {
+            ai_model: modelVersion,
+            complexity_score: complexityScore.toString(),
+            last_updated: new Date().toISOString()
+          }
+        }
+      });
+      
       const media = {
         mimeType: mimeType,
         body: typeof content === 'string' ? content : JSON.stringify(content),
@@ -198,14 +223,14 @@ class GoogleDriveService {
     }
   }
 
-  async createOrUpdateFile(fileName, content, mimeType, subfolder = null) {
+  async createOrUpdateFile(fileName, content, mimeType, subfolder = null, modelVersion = 'unknown') {
     try {
       const existingFile = await this.findFileByName(fileName, subfolder);
       
       if (existingFile) {
-        return await this.updateFile(existingFile.id, content, mimeType);
+        return await this.updateFile(existingFile.id, content, mimeType, modelVersion);
       } else {
-        return await this.createFile(fileName, content, mimeType, subfolder);
+        return await this.createFile(fileName, content, mimeType, subfolder, modelVersion);
       }
     } catch (error) {
       console.error('Error creating or updating file:', error);

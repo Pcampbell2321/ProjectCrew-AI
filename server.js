@@ -14,10 +14,18 @@ const codeSearchRoutes = require('./src/routes/codeSearchRoutes');
 const codeGenerationRoutes = require('./src/routes/codeGenerationRoutes');
 const meetingActionItemRoutes = require('./src/routes/meetingActionItemRoutes');
 const documentationRoutes = require('./src/routes/documentationRoutes');
+const aiProcessingRoutes = require('./src/routes/aiProcessingRoutes');
 
 // Initialize express
 const app = express();
 app.use(express.json());
+
+// Security headers
+app.use((req, res, next) => {
+  res.header('X-Content-Type-Options', 'nosniff');
+  res.header('Strict-Transport-Security', 'max-age=63072000');
+  next();
+});
 
 // Register routes
 app.use('/api/project', projectRoutes);
@@ -26,6 +34,7 @@ app.use('/api/code-search', codeSearchRoutes);
 app.use('/api/code-generation', codeGenerationRoutes);
 app.use('/api/meeting', meetingActionItemRoutes);
 app.use('/api/documentation', documentationRoutes);
+app.use('/api/ai', aiProcessingRoutes);
 
 // Add a route to check Google Drive connection
 app.get('/api/drive/status', async (req, res) => {
