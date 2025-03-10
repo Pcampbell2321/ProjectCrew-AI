@@ -7,7 +7,7 @@ module.exports = {
   // Google Gemini models
   gemini: {
     flash: {
-      id: 'gemini-1.5-flash',
+      id: 'gemini-2.0-flash',
       temperature: 0.7,
       topK: 40,
       topP: 0.95,
@@ -16,7 +16,7 @@ module.exports = {
       capabilities: ['code-generation', 'summarization', 'classification']
     },
     pro: {
-      id: 'gemini-1.5-pro',
+      id: 'gemini-2.0-pro',
       temperature: 0.7,
       topK: 40,
       topP: 0.95,
@@ -29,14 +29,14 @@ module.exports = {
   // Anthropic Claude models
   claude: {
     haiku: {
-      id: 'claude-3-5-haiku-20241022',
+      id: 'claude-3.5-haiku-latest',
       temperature: 0.7,
       maxTokens: 4096,
       costPer1KTokens: 0.00025,
       capabilities: ['code-generation', 'summarization', 'classification', 'analysis']
     },
     sonnet: {
-      id: 'claude-3-sonnet-20240229',
+      id: 'claude-3.7-sonnet-latest',
       temperature: 0.7,
       maxTokens: 16384,
       costPer1KTokens: 0.003,
@@ -54,7 +54,7 @@ module.exports = {
   // DeepSeek models
   deepseek: {
     r1: {
-      id: 'deepseek-coder-v2',
+      id: 'deepseek-r1',
       temperature: 0.5,
       maxTokens: 16384,
       costPer1KTokens: 0.002,
