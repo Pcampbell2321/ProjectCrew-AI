@@ -2,6 +2,7 @@ const ClaudeHandler = require('./claudeHandler');
 const GeminiHandler = require('./geminiHandler');
 const ComplexityScorer = require('./complexityScorer');
 const ReasoningAnalyzer = require('./reasoningAnalyzer');
+const ChatSession = require('./chatSession');
 
 /**
  * Task Analyzer
@@ -130,6 +131,30 @@ class AIOrchestrationService {
       gemini: this.geminiHandler,
       deepseek: this.deepseekHandler
     };
+  }
+
+  /**
+   * Process chat message with history
+   * @param {String} userId - User identifier
+   * @param {String} sessionId - Chat session identifier (optional)
+   * @param {String} message - User message
+   * @returns {Promise<Object>} - Response and session ID
+   */
+  async processChatMessage(userId, sessionId, message) {
+    const session = new ChatSession(userId, sessionId);
+    await session.initialize();
+    
+    // Add user message to history
+    await session.addMessage('user', message);
+    
+    // Get contextual prompt
+    const contextualPrompt = await session.getContextualPrompt(message);
+    
+    // Process through AI
+    const response = await this.processTask(contextualPrompt);
+    await session.addMessage('assistant', response);
+    
+    return { response, sessionId: session.sessionId };
   }
 
   /**

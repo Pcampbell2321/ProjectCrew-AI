@@ -33,6 +33,11 @@ class GeminiHandler {
    * @returns {Promise<Object>} - The processed result
    */
   async processTask(task, context = {}) {
+    // Check if we have chat history in context
+    if (context.history && Array.isArray(context.history)) {
+      context.chatHistory = context.history;
+    }
+    
     return await this.callGeminiAPI(task, context, this.models.pro);
   }
 
@@ -104,6 +109,15 @@ class GeminiHandler {
     
     if (context.guidelines) {
       prompt += `${context.guidelines}\n\n`;
+    }
+    
+    // Add chat history if available
+    if (context.chatHistory && Array.isArray(context.chatHistory)) {
+      prompt += "Previous conversation:\n";
+      context.chatHistory.forEach(message => {
+        prompt += `${message.role}: ${message.content}\n`;
+      });
+      prompt += "\n";
     }
     
     // Add task content

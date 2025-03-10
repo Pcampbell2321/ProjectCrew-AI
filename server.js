@@ -14,6 +14,8 @@ dotenv.config();
 
 // Initialize Google Drive service
 const driveService = require('./src/utils/googleDriveService');
+const ChatSession = require('./src/services/chatSession');
+const aiService = require('./src/services/aiOrchestrator');
 
 // Import routes
 const projectRoutes = require('./src/routes/projectRoutes');
@@ -203,6 +205,52 @@ app.post('/api/upload', ensureAuthenticated, (req, res) => {
   driveService.createFile(sanitizedName, uploadedFile.data, uploadedFile.mimetype)
     .then(fileId => res.json({ success: true, fileId }))
     .catch(error => res.status(500).json({ error: 'Upload failed' }));
+});
+
+// Chat endpoints
+app.post('/api/chat/start', ensureAuthenticated, csrfProtection, async (req, res) => {
+  try {
+    const session = new ChatSession(req.user.id);
+    await session.initialize();
+    res.json({ sessionId: session.sessionId });
+  } catch (error) {
+    console.error('Error starting chat session:', error);
+    res.status(500).json({ error: 'Failed to start chat session' });
+  }
+});
+
+app.post('/api/chat/message', ensureAuthenticated, csrfProtection, [
+  body('message').trim().isLength({ min: 1 }).escape(),
+  body('sessionId').optional().isString()
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  try {
+    const { message, sessionId } = req.body;
+    const result = await aiService.processChatMessage(
+      req.user.id,
+      sessionId,
+      message
+    );
+    res.json(result);
+  } catch (error) {
+    console.error('Error processing chat message:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/chat/history', ensureAuthenticated, csrfProtection, async (req, res) => {
+  try {
+    const session = new ChatSession(req.user.id, req.query.sessionId);
+    await session.initialize();
+    res.json({ history: await session.getHistory(), sessionId: session.sessionId });
+  } catch (error) {
+    console.error('Error retrieving chat history:', error);
+    res.status(500).json({ error: 'Failed to retrieve chat history' });
+  }
 });
 
 // CSRF token endpoint
