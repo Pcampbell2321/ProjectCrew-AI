@@ -1,4 +1,4 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } = require('@google/generative-ai');
 
 /**
  * Gemini AI Handler Service
@@ -156,10 +156,13 @@ class GeminiHandler {
    * @returns {Object} - Safety settings
    */
   getSafetySettings(context) {
-    return {
-      harassment: context.sensitive ? 'BLOCK_MEDIUM_AND_ABOVE' : 'BLOCK_ONLY_HIGH',
-      toxicity: 'BLOCK_LOW_AND_ABOVE'
-    };
+    return [
+      {
+        category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+        threshold: context.sensitive ? HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE 
+                   : HarmBlockThreshold.BLOCK_ONLY_HIGH
+      }
+    ];
   }
 
   /**
