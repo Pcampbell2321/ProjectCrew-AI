@@ -5,6 +5,7 @@ const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const path = require('path');
 const csurf = require('csurf');
+const cookieParser = require('cookie-parser');
 const { body, validationResult } = require('express-validator');
 const fileUpload = require('express-fileupload');
 
@@ -26,6 +27,11 @@ const aiProcessingRoutes = require('./src/routes/aiProcessingRoutes');
 // Initialize express
 const app = express();
 app.use(express.json());
+
+// Cookie parser must come before session and CSRF
+app.use(cookieParser());
+
+// Static files and security headers
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(fileUpload({
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
@@ -50,6 +56,7 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'keyboard cat',
   resave: false,
   saveUninitialized: true,
+  name: 'sessionId',
   cookie: { secure: process.env.NODE_ENV === 'production' }
 }));
 
@@ -57,8 +64,17 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-// CSRF protection
-app.use(csurf({ cookie: true }));
+// Configure CSRF with proper cookie settings
+const csrfProtection = csurf({
+  cookie: {
+    key: '_csrf',
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    httpOnly: true
+  }
+});
+
+app.use(csrfProtection);
 
 // Passport serialization
 passport.serializeUser((user, done) => {
@@ -110,7 +126,7 @@ app.get('/api/drive/status', async (req, res) => {
 });
 
 // Add a route to list files in Google Drive
-app.get('/api/drive/files', async (req, res) => {
+app.get('/api/drive/files', csrfProtection, async (req, res) => {
   try {
     const subfolder = req.query.subfolder || null;
     const files = await driveService.listFiles(subfolder);
@@ -122,7 +138,7 @@ app.get('/api/drive/files', async (req, res) => {
 });
 
 // Authentication routes
-app.get('/auth/google',
+app.get('/auth/google', csrfProtection,
   passport.authenticate('google', { 
     prompt: 'select_account',
     accessType: 'offline' 
@@ -165,7 +181,7 @@ app.post('/api/upload', ensureAuthenticated, (req, res) => {
 });
 
 // CSRF token endpoint
-app.get('/api/csrf-token', ensureAuthenticated, (req, res) => {
+app.get('/api/csrf-token', (req, res) => {
   res.json({ csrfToken: req.csrfToken() });
 });
 
