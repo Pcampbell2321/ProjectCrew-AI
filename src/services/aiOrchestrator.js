@@ -136,10 +136,14 @@ class AIOrchestrationService {
   }
 
   /**
-   * Process chat message with history
+   * Process unified message (chat or task) with history
    * @param {String} userId - User identifier
    * @param {String} sessionId - Chat session identifier (optional)
-   * @param {String} message - User message
+   * @param {Object} message - User message object
+   * @param {String} message.content - Message content
+   * @param {String} message.mode - 'chat' or 'task'
+   * @param {String} message.taskType - Type of task if in task mode
+   * @param {Object} message.metadata - Additional task metadata
    * @param {Array} attachments - Optional file attachments
    * @param {Object} options - Additional options
    * @returns {Promise<Object>} - Response and session ID
@@ -149,25 +153,38 @@ class AIOrchestrationService {
       const session = new ChatSession(userId, sessionId);
       await session.initialize();
       
+      // Handle message object or string format for backward compatibility
+      const messageContent = typeof message === 'string' ? message : message.content;
+      const messageMode = typeof message === 'string' ? 'chat' : (message.mode || 'chat');
+      const taskType = typeof message === 'string' ? null : message.taskType;
+      const taskMetadata = typeof message === 'string' ? null : message.metadata;
+      
       // Add user message to history
-      await session.addMessage('user', message);
+      await session.addMessage('user', messageContent);
       
       // Get contextual prompt with attachment info if present
-      let contextualPrompt = message;
+      let contextualPrompt = messageContent;
       if (attachments && attachments.length > 0) {
         contextualPrompt += `\n\n[User has attached ${attachments.length} file(s): ${
           attachments.map(a => a.name).join(', ')
         }]`;
       }
       
-      // Detect if this is a task-oriented message
-      const taskDetection = await this.taskDetector.detectTaskIntent(message);
+      // Determine if this is a task based on explicit mode or detection
+      let taskDetection = { isTask: messageMode === 'task', type: taskType, parameters: taskMetadata };
+      
+      // If not explicitly marked as task, detect from content
+      if (!taskDetection.isTask && !taskType) {
+        taskDetection = await this.taskDetector.detectTaskIntent(messageContent);
+      }
       
       let response;
+      let responseType = 'chat';
+      let responseMetadata = {};
       
       // Handle as task if detected or explicitly specified
       if (taskDetection.isTask || options.taskMode) {
-        console.log('Task detected in chat message, processing as task');
+        console.log('Processing as task:', taskType || taskDetection.type || 'general');
         
         // Create task object with context from chat history
         const taskContext = {
@@ -176,20 +193,27 @@ class AIOrchestrationService {
           ...options
         };
         
-        const taskParameters = taskDetection.parameters || { content: message };
+        const taskParameters = taskDetection.parameters || taskMetadata || { content: messageContent };
         
         try {
           // Process as a task with chat context
           const taskResult = await this.processTask(taskParameters, taskContext);
           
           // Format the task result for chat display
-          response = this.formatTaskResponse(taskResult, taskDetection.type);
+          response = this.formatTaskResponse(taskResult, taskDetection.type || taskType);
+          responseType = 'task';
+          responseMetadata = {
+            taskType: taskDetection.type || taskType || 'general',
+            model: taskResult.model || 'unknown',
+            status: 'success'
+          };
           
           // Add system message about task execution (optional)
-          await session.addMessage('system', `Task executed: ${taskDetection.type || 'general'}`);
+          await session.addMessage('system', `Task executed: ${taskDetection.type || taskType || 'general'}`);
         } catch (error) {
           console.error('Task processing error:', error);
           response = `I encountered an error while processing your task: ${error.message}`;
+          responseMetadata = { status: 'error', error: error.message };
         }
       } else {
         // Process as normal conversational message
@@ -200,6 +224,7 @@ class AIOrchestrationService {
         } catch (error) {
           console.error('AI processing error:', error);
           response = "I'm sorry, I encountered an error processing your request. Please try again or rephrase your question.";
+          responseMetadata = { status: 'error', error: error.message };
         }
       }
       
@@ -209,7 +234,9 @@ class AIOrchestrationService {
       return { 
         response, 
         sessionId: session.sessionId,
-        wasTask: taskDetection.isTask || options.taskMode
+        type: responseType,
+        wasTask: taskDetection.isTask || options.taskMode,
+        metadata: responseMetadata
       };
     } catch (error) {
       console.error('Chat message processing error:', error);
@@ -218,10 +245,10 @@ class AIOrchestrationService {
   }
   
   /**
-   * Format task response for chat display
+   * Format task response for unified display
    * @param {Object} taskResult - The result from processTask
    * @param {String} taskType - The type of task that was executed
-   * @returns {String} - Formatted response for chat
+   * @returns {String} - Formatted response for display
    */
   formatTaskResponse(taskResult, taskType = 'general') {
     // If result is already a string, return it
@@ -232,6 +259,16 @@ class AIOrchestrationService {
     // Format based on task type
     if (taskType === 'document_creation' && taskResult.document) {
       return `✅ Document created successfully: "${taskResult.document.title}"\n\nYou can access it here: ${taskResult.document.url}`;
+    }
+    
+    // Handle reasoning tasks with special formatting
+    if (taskType === 'reasoning' && taskResult.reasoning) {
+      return `**Reasoning Analysis**\n\n${taskResult.reasoning}\n\n**Conclusion**\n${taskResult.content}`;
+    }
+    
+    // Handle data analysis tasks
+    if (taskType === 'data_analysis' && taskResult.charts) {
+      return `**Data Analysis Results**\n\n${taskResult.content}\n\n[Charts and visualizations available in the dashboard]`;
     }
     
     if (taskResult.content) {

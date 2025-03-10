@@ -28,12 +28,15 @@ class DeepseekHandler {
       const prompt = this.buildReasoningPrompt(task, context);
       const response = await this.callDeepseekAPI(prompt, context);
       
+      // Format response for unified interface
       return {
         content: response.content,
         model: this.model.id,
         type: 'deepseek',
         reasoning: response.reasoning || null,
-        taskContext: context.chatHistory ? 'chat_integrated' : 'standalone'
+        taskContext: context.chatHistory ? 'chat_integrated' : 'standalone',
+        displayFormat: 'reasoning',
+        steps: response.reasoning ? this.formatReasoningSteps(response.reasoning) : null
       };
     } catch (error) {
       console.error('Error in DeepSeek reasoning task:', error);
@@ -150,6 +153,44 @@ class DeepseekHandler {
       }
       throw new Error(`DeepSeek API error: ${error.message}`);
     }
+  }
+  /**
+   * Format reasoning steps for display
+   * @param {String|Array} reasoning - Reasoning steps from the model
+   * @returns {Array} - Formatted steps for display
+   */
+  formatReasoningSteps(reasoning) {
+    if (Array.isArray(reasoning)) {
+      return reasoning.map((step, index) => ({
+        step: index + 1,
+        content: step
+      }));
+    }
+    
+    // If it's a string, try to split by numbered steps or paragraphs
+    if (typeof reasoning === 'string') {
+      // Check if it has numbered steps like "1.", "2.", etc.
+      if (/\d+\.\s/.test(reasoning)) {
+        return reasoning
+          .split(/(?=\d+\.\s)/)
+          .filter(step => step.trim())
+          .map((step, index) => ({
+            step: index + 1,
+            content: step.trim()
+          }));
+      }
+      
+      // Otherwise split by paragraphs
+      return reasoning
+        .split(/\n\n+/)
+        .filter(para => para.trim())
+        .map((para, index) => ({
+          step: index + 1,
+          content: para.trim()
+        }));
+    }
+    
+    return [{ step: 1, content: reasoning.toString() }];
   }
 }
 
