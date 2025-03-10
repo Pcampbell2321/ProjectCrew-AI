@@ -145,6 +145,11 @@ class AIOrchestrationService {
     let analysis = null;
     
     try {
+      // Check for special document creation task
+      if (task.action === 'create_document') {
+        return await this._handleDocumentCreation(task, context);
+      }
+      
       // Get comprehensive task analysis
       analysis = await this.analyzer.analyzeTask(task);
       task.complexity = analysis.complexity;
@@ -217,6 +222,37 @@ class AIOrchestrationService {
   logTaskMetrics(metrics) {
     console.log('AI Task Metrics:', JSON.stringify(metrics));
     // In a production environment, this would send to a monitoring service
+  }
+  
+  /**
+   * Handle document creation tasks
+   * @param {Object} task - Document creation task
+   * @param {Object} context - Additional context
+   * @returns {Promise<Object>} - Created document info
+   */
+  async _handleDocumentCreation(task, context = {}) {
+    console.log('Handling document creation task');
+    
+    // Validate required fields
+    if (!task.title || !task.content) {
+      throw new Error('Document creation requires title and content');
+    }
+    
+    // Get Google Drive service
+    const driveService = require('../utils/googleDriveService');
+    
+    // Create the document
+    const document = await driveService.createDocument(
+      task.title,
+      task.content,
+      context.folder || null
+    );
+    
+    return {
+      success: true,
+      document,
+      model: 'document-creation-service'
+    };
   }
 }
 

@@ -225,6 +225,41 @@ class GoogleDriveService {
     }
   }
 
+  /**
+   * Create a new Google Doc in the Work folder
+   * @param {String} title - Document title
+   * @param {String} content - Initial document content
+   * @param {String} subfolder - Optional subfolder path
+   * @returns {Promise<Object>} - Created document metadata
+   */
+  async createDocument(title, content, subfolder = null) {
+    try {
+      const folderId = subfolder ? await this.getSubfolderId(subfolder) : this.workFolderId;
+      
+      const fileMetadata = {
+        name: title,
+        mimeType: 'application/vnd.google-apps.document',
+        parents: [folderId],
+      };
+
+      const media = {
+        mimeType: 'text/plain',
+        body: content,
+      };
+
+      const document = await this.drive.files.create({
+        resource: fileMetadata,
+        media: media,
+        fields: 'id, name, webViewLink',
+      });
+
+      return document.data;
+    } catch (error) {
+      console.error('Error creating Google Doc:', error);
+      throw error;
+    }
+  }
+
   async calculateComplexity(content) {
     // Simple heuristic - adjust based on your needs
     const text = typeof content === 'string' ? content : JSON.stringify(content);

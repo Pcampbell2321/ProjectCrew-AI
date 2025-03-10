@@ -140,6 +140,28 @@ app.get('/api/drive/files', csrfProtection, async (req, res) => {
   }
 });
 
+// Add a route to create Google Docs
+app.post('/api/drive/create-doc', csrfProtection, ensureAuthenticated, [
+  body('title').trim().isLength({ min: 1, max: 255 }).escape(),
+  body('content').isString(),
+  body('subfolder').optional().isString()
+], async (req, res) => {
+  // Check for validation errors
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+  
+  try {
+    const { title, content, subfolder } = req.body;
+    const document = await driveService.createDocument(title, content, subfolder);
+    res.json({ success: true, document });
+  } catch (error) {
+    console.error('Error creating Google Doc:', error);
+    res.status(500).json({ error: 'Failed to create document' });
+  }
+});
+
 // Authentication routes
 app.get('/auth/google',
   passport.authenticate('google', { 
