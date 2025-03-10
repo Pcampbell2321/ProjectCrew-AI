@@ -3,6 +3,7 @@ const GeminiHandler = require('./geminiHandler');
 const ComplexityScorer = require('./complexityScorer');
 const ReasoningAnalyzer = require('./reasoningAnalyzer');
 const ChatSession = require('./chatSession');
+const TaskDetector = require('./taskDetector');
 
 /**
  * Task Analyzer
@@ -112,6 +113,7 @@ class AIOrchestrationService {
     this.geminiHandler = new GeminiHandler();
     this.complexityScorer = new ComplexityScorer();
     this.deepseekHandler = new (require('./deepseekHandler'))();
+    this.taskDetector = new TaskDetector();
     
     // Default thresholds for model selection
     this.thresholds = {
@@ -139,9 +141,10 @@ class AIOrchestrationService {
    * @param {String} sessionId - Chat session identifier (optional)
    * @param {String} message - User message
    * @param {Array} attachments - Optional file attachments
+   * @param {Object} options - Additional options
    * @returns {Promise<Object>} - Response and session ID
    */
-  async processChatMessage(userId, sessionId, message, attachments = []) {
+  async processChatMessage(userId, sessionId, message, attachments = [], options = {}) {
     try {
       const session = new ChatSession(userId, sessionId);
       await session.initialize();
@@ -157,25 +160,86 @@ class AIOrchestrationService {
         }]`;
       }
       
-      const fullPrompt = await session.getContextualPrompt(contextualPrompt);
+      // Detect if this is a task-oriented message
+      const taskDetection = await this.taskDetector.detectTaskIntent(message);
       
-      // Process through AI with error handling
       let response;
-      try {
-        response = await this.processTask(fullPrompt);
-      } catch (error) {
-        console.error('AI processing error:', error);
-        response = "I'm sorry, I encountered an error processing your request. Please try again or rephrase your question.";
+      
+      // Handle as task if detected or explicitly specified
+      if (taskDetection.isTask || options.taskMode) {
+        console.log('Task detected in chat message, processing as task');
+        
+        // Create task object with context from chat history
+        const taskContext = {
+          chatHistory: await session.getCompactHistory(),
+          attachments,
+          ...options
+        };
+        
+        const taskParameters = taskDetection.parameters || { content: message };
+        
+        try {
+          // Process as a task with chat context
+          const taskResult = await this.processTask(taskParameters, taskContext);
+          
+          // Format the task result for chat display
+          response = this.formatTaskResponse(taskResult, taskDetection.type);
+          
+          // Add system message about task execution (optional)
+          await session.addMessage('system', `Task executed: ${taskDetection.type || 'general'}`);
+        } catch (error) {
+          console.error('Task processing error:', error);
+          response = `I encountered an error while processing your task: ${error.message}`;
+        }
+      } else {
+        // Process as normal conversational message
+        const fullPrompt = await session.getContextualPrompt(contextualPrompt);
+        
+        try {
+          response = await this.processTask(fullPrompt);
+        } catch (error) {
+          console.error('AI processing error:', error);
+          response = "I'm sorry, I encountered an error processing your request. Please try again or rephrase your question.";
+        }
       }
       
       // Add AI response to history
       await session.addMessage('assistant', response);
       
-      return { response, sessionId: session.sessionId };
+      return { 
+        response, 
+        sessionId: session.sessionId,
+        wasTask: taskDetection.isTask || options.taskMode
+      };
     } catch (error) {
       console.error('Chat message processing error:', error);
       throw new Error(`Failed to process chat message: ${error.message}`);
     }
+  }
+  
+  /**
+   * Format task response for chat display
+   * @param {Object} taskResult - The result from processTask
+   * @param {String} taskType - The type of task that was executed
+   * @returns {String} - Formatted response for chat
+   */
+  formatTaskResponse(taskResult, taskType = 'general') {
+    // If result is already a string, return it
+    if (typeof taskResult === 'string') {
+      return taskResult;
+    }
+    
+    // Format based on task type
+    if (taskType === 'document_creation' && taskResult.document) {
+      return `✅ Document created successfully: "${taskResult.document.title}"\n\nYou can access it here: ${taskResult.document.url}`;
+    }
+    
+    if (taskResult.content) {
+      return taskResult.content;
+    }
+    
+    // Default formatting for other task types
+    return `Task completed successfully.\n\nResult: ${JSON.stringify(taskResult, null, 2)}`;
   }
 
   /**

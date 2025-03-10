@@ -20,6 +20,11 @@ class DeepseekHandler {
    */
   async processReasoningTask(task, context = {}) {
     try {
+      // Include chat history in context if available
+      if (context.chatHistory) {
+        console.log('Including chat history in reasoning task');
+      }
+      
       const prompt = this.buildReasoningPrompt(task, context);
       const response = await this.callDeepseekAPI(prompt, context);
       
@@ -27,7 +32,8 @@ class DeepseekHandler {
         content: response.content,
         model: this.model.id,
         type: 'deepseek',
-        reasoning: response.reasoning || null
+        reasoning: response.reasoning || null,
+        taskContext: context.chatHistory ? 'chat_integrated' : 'standalone'
       };
     } catch (error) {
       console.error('Error in DeepSeek reasoning task:', error);
@@ -56,6 +62,15 @@ class DeepseekHandler {
     
     if (context.guidelines) {
       prompt += `Guidelines: ${context.guidelines}\n\n`;
+    }
+    
+    // Include chat history context if available
+    if (context.chatHistory && Array.isArray(context.chatHistory)) {
+      prompt += 'Previous conversation context:\n';
+      prompt += context.chatHistory
+        .map(msg => `${msg.role}: ${msg.content.substring(0, 200)}${msg.content.length > 200 ? '...' : ''}`)
+        .join('\n');
+      prompt += '\n\n';
     }
     
     // Add task content
