@@ -49,7 +49,7 @@ app.use((req, res, next) => {
     "default-src 'self';" +
     "script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline';" +
     "style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline';" +
-    "img-src 'self' data: project-crew-ai.example.com;");
+    "img-src 'self' data: projectcrew-ai.example.com;");
   next();
 });
 
@@ -246,8 +246,8 @@ app.post('/api/chat/message', ensureAuthenticated, csrfProtection, [
         file.name,
         file.data,
         file.mimetype,
-        `project-crew-ai/chats/${req.user.id}/${req.body.sessionId || 'default'}`,
-        'Uploaded via Project Crew AI Platform'
+        `projectcrew-ai/chats/${req.user.id}/${req.body.sessionId || 'default'}`,
+        'Uploaded via Projectcrew AI Platform'
       );
       attachments.push({ name: file.name, id: fileId });
     }
@@ -304,5 +304,5 @@ function sanitizeFilename(filename) {
 // Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Project Crew AI Server running on port ${PORT}`);
+  console.log(`Projectcrew AI Server running on port ${PORT}`);
 });
