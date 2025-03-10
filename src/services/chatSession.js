@@ -96,7 +96,8 @@ class ChatSession {
       context: this.context,
       metadata: {
         userId: this.userId,
-        lastUpdated: new Date().toISOString()
+        lastUpdated: new Date().toISOString(),
+        platform: 'Project Crew AI'
       }
     };
 
@@ -104,7 +105,7 @@ class ChatSession {
       `${this.sessionId}.json`,
       JSON.stringify(sessionData, null, 2),
       'application/json',
-      `chats/${this.userId}`
+      `project-crew-ai/chats/${this.userId}`
     );
   }
 }

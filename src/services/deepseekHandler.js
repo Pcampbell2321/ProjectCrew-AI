@@ -2,7 +2,7 @@ const axios = require('axios');
 const aiModels = require('../config/aiModels');
 
 /**
- * DeepSeek AI Handler Service
+ * DeepSeek AI Handler Service for Project Crew AI
  * Handles interactions with DeepSeek API for reasoning-focused tasks
  */
 class DeepseekHandler {
@@ -43,7 +43,7 @@ class DeepseekHandler {
       
       return this._formatDeepseekResponse(response, safeContext);
     } catch (error) {
-      console.error('DeepSeek Failed:', {
+      console.error('[Project Crew AI] DeepSeek Failed:', {
         task: this._redactSensitive(task),
         context: this._redactSensitive(safeContext)
       });
@@ -192,10 +192,10 @@ class DeepseekHandler {
         reasoning: parsedResult.reasoning || parsedResult.steps || null
       };
     } catch (error) {
-      console.error('Error calling DeepSeek API:', error);
+      console.error('[Project Crew AI] Error calling DeepSeek API:', error);
       if (error.response) {
-        console.error('Response status:', error.response.status);
-        console.error('Response data:', error.response.data);
+        console.error('[Project Crew AI] Response status:', error.response.status);
+        console.error('[Project Crew AI] Response data:', error.response.data);
       }
       throw new Error(`DeepSeek API error: ${error.message}`);
     }

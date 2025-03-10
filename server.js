@@ -49,7 +49,7 @@ app.use((req, res, next) => {
     "default-src 'self';" +
     "script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline';" +
     "style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline';" +
-    "img-src 'self' data:;");
+    "img-src 'self' data: project-crew-ai.example.com;");
   next();
 });
 
@@ -95,8 +95,11 @@ passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     callbackURL: '/auth/google/callback',
+    userProfileURL: 'https://www.googleapis.com/oauth2/v3/userinfo',
     scope: ['profile', 'email'],
-    state: true
+    state: true,
+    prompt: 'select_account consent',  // Add consent for branding clarity
+    accessType: 'offline'
   },
   (accessToken, refreshToken, profile, done) => {
     return done(null, profile);
@@ -201,8 +204,14 @@ app.post('/api/upload', ensureAuthenticated, (req, res) => {
 
   const uploadedFile = req.files.file;
   const sanitizedName = sanitizeFilename(uploadedFile.name);
-  
-  driveService.createFile(sanitizedName, uploadedFile.data, uploadedFile.mimetype)
+    
+  driveService.createFile(
+    sanitizedName, 
+    uploadedFile.data, 
+    uploadedFile.mimetype,
+    null,
+    'Created by Project Crew AI Platform'
+  )
     .then(fileId => res.json({ success: true, fileId }))
     .catch(error => res.status(500).json({ error: 'Upload failed' }));
 });
@@ -237,7 +246,8 @@ app.post('/api/chat/message', ensureAuthenticated, csrfProtection, [
         file.name,
         file.data,
         file.mimetype,
-        `chats/${req.user.id}/${req.body.sessionId || 'default'}`
+        `project-crew-ai/chats/${req.user.id}/${req.body.sessionId || 'default'}`,
+        'Uploaded via Project Crew AI Platform'
       );
       attachments.push({ name: file.name, id: fileId });
     }
@@ -294,5 +304,5 @@ function sanitizeFilename(filename) {
 // Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Project Crew AI Server running on port ${PORT}`);
 });
