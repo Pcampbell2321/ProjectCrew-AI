@@ -101,21 +101,37 @@
             <span id="complexityScore"></span>
             <span id="processingTime"></span>
           </div>
-          <div class="ai-output" id="aiOutput"></div>
-          <div class="chat-status" id="chatStatus">Starting new chat session...</div>
-          <div class="typing-indicator" id="typingIndicator">AI is thinking...</div>
+          <div class="chat-container">
+            <div class="chat-history" id="chatHistory">
+              <!-- Messages will be inserted here -->
+            </div>
+            
+            <div class="chat-controls">
+              <div class="chat-status" id="chatStatus">Connecting...</div>
+              <div class="typing-indicator" id="typingIndicator">
+                <div class="dot-flashing"></div>
+              </div>
+              
+              <form id="chatForm" class="chat-input">
+                <div class="input-group">
+                  <button type="button" class="attach-btn" onclick="document.getElementById('fileAttachment').click()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                  </button>
+                  <input type="file" id="fileAttachment" hidden>
+                  <input type="text" id="messageInput" placeholder="Message ProjectCrew AI...">
+                  <button type="submit" class="send-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
           <div class="error-message" id="errorMessage" style="display: none"></div>
           <div class="action-buttons">
             <button id="saveToDriveBtn" disabled>Save to Drive</button>
             <button id="exportToZohoBtn" disabled>Export to Zoho</button>
             <button id="copyBtn" disabled>Copy to Clipboard</button>
           </div>
-          <form id="chatForm" class="chat-input">
-            <input type="file" id="fileAttachment" style="display: none">
-            <button type="button" onclick="document.getElementById('fileAttachment').click()">📎</button>
-            <input type="text" id="messageInput" placeholder="Type your message...">
-            <button type="submit">Send</button>
-          </form>
         </div>
       </div>
       

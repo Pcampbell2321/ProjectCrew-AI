@@ -10,7 +10,8 @@ function showError(message) {
 }
 
 function showTypingIndicator() {
-  document.getElementById('typingIndicator').style.display = 'block';
+  const indicator = document.getElementById('typingIndicator');
+  indicator.style.display = 'flex';
 }
 
 function hideTypingIndicator() {
@@ -23,25 +24,48 @@ function renderMarkdown(content) {
 
 // Enhanced appendMessage function
 function appendMessage(role, content, attachments = []) {
-  const historyDiv = document.getElementById('chatHistory') || document.getElementById('aiOutput');
+  const historyDiv = document.getElementById('chatHistory');
   const messageDiv = document.createElement('div');
   messageDiv.className = `chat-message ${role}-message`;
   
-  // Add markdown support
-  messageDiv.innerHTML = renderMarkdown(content);
+  // Message content
+  const contentDiv = document.createElement('div');
+  contentDiv.className = 'message-content';
+  contentDiv.innerHTML = renderMarkdown(content);
   
-  // Add file attachments
+  // Message metadata
+  const metaDiv = document.createElement('div');
+  metaDiv.className = 'message-meta';
+  metaDiv.innerHTML = `
+    <span>${role === 'user' ? 'You' : 'AI Assistant'}</span>
+    <span>${new Date().toLocaleTimeString()}</span>
+  `;
+
+  // Attachments
   if (attachments && attachments.length > 0) {
+    const attachmentsDiv = document.createElement('div');
+    attachmentsDiv.className = 'attachments';
     attachments.forEach(file => {
-      const attachmentDiv = document.createElement('div');
-      attachmentDiv.className = 'attachment-preview';
-      attachmentDiv.textContent = `📎 ${file.name || 'Attachment'}`;
-      messageDiv.appendChild(attachmentDiv);
+      const attachment = document.createElement('div');
+      attachment.className = 'attachment-preview';
+      attachment.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
+        <span>${file.name || 'Attachment'}</span>
+      `;
+      attachmentsDiv.appendChild(attachment);
     });
+    messageDiv.appendChild(attachmentsDiv);
   }
-  
+
+  messageDiv.appendChild(contentDiv);
+  messageDiv.appendChild(metaDiv);
   historyDiv.appendChild(messageDiv);
-  historyDiv.scrollTop = historyDiv.scrollHeight;
+  
+  // Smooth scroll
+  historyDiv.scrollTo({
+    top: historyDiv.scrollHeight,
+    behavior: 'smooth'
+  });
 }
 
 // Get CSRF token
@@ -139,8 +163,11 @@ async function startNewChat() {
     document.getElementById('chatStatus').textContent = 'New chat session started';
     
     // Clear previous chat history
-    const historyDiv = document.getElementById('chatHistory') || document.getElementById('aiOutput');
+    const historyDiv = document.getElementById('chatHistory');
     if (historyDiv) historyDiv.innerHTML = '';
+    
+    // Add welcome message
+    appendMessage('assistant', 'Hello! I\'m your ProjectCrew AI assistant. How can I help you today?');
     
     await loadChatHistory();
     
@@ -169,17 +196,19 @@ async function loadChatHistory() {
     const data = await response.json();
     
     // Clear existing messages
-    const historyDiv = document.getElementById('chatHistory') || document.getElementById('aiOutput');
+    const historyDiv = document.getElementById('chatHistory');
     if (historyDiv) historyDiv.innerHTML = '';
     
     // Add messages from history
     if (data.history && data.history.length > 0) {
       data.history.forEach(msg => {
-        appendMessage(msg.role, msg.content);
+        appendMessage(msg.role, msg.content, msg.attachments || []);
       });
       document.getElementById('chatStatus').textContent = 'Chat history loaded';
     } else {
-      document.getElementById('chatStatus').textContent = 'No previous messages';
+      // Add welcome message if no history
+      appendMessage('assistant', 'Hello! I\'m your ProjectCrew AI assistant. How can I help you today?');
+      document.getElementById('chatStatus').textContent = 'New conversation started';
     }
     
   } catch (error) {
