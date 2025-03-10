@@ -28,7 +28,7 @@ class DeepseekHandler {
       const prompt = this.buildReasoningPrompt(task, context);
       const response = await this.callDeepseekAPI(prompt, context);
       
-      // Format response for unified interface
+      // Format response for unified interface with standardized format
       return {
         content: response.content,
         model: this.model.id,
@@ -36,7 +36,12 @@ class DeepseekHandler {
         reasoning: response.reasoning || null,
         taskContext: context.chatHistory ? 'chat_integrated' : 'standalone',
         displayFormat: 'reasoning',
-        steps: response.reasoning ? this.formatReasoningSteps(response.reasoning) : null
+        steps: response.reasoning ? this.formatReasoningSteps(response.reasoning) : null,
+        metadata: {
+          model: this.model.id,
+          reasoningType: 'stepwise',
+          displayType: 'enhanced'
+        }
       };
     } catch (error) {
       console.error('Error in DeepSeek reasoning task:', error);

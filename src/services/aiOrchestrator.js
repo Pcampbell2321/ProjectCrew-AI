@@ -182,50 +182,32 @@ class AIOrchestrationService {
       let responseType = 'chat';
       let responseMetadata = {};
       
-      // Handle as task if detected or explicitly specified
-      if (taskDetection.isTask || options.taskMode) {
-        console.log('Processing as task:', taskType || taskDetection.type || 'general');
+      // Unified processing path
+      try {
+        const processingResult = await this.processUnifiedRequest({
+          content: messageContent,
+          metadata: {
+            attachments,
+            taskType: taskDetection.type || taskType,
+            isTask: taskDetection.isTask || options.taskMode,
+            ...taskDetection.parameters || taskMetadata || {},
+            ...options
+          },
+          context: await session.getCompactHistory()
+        });
         
-        // Create task object with context from chat history
-        const taskContext = {
-          chatHistory: await session.getCompactHistory(),
-          attachments,
-          ...options
-        };
+        response = processingResult.content;
+        responseType = processingResult.type;
+        responseMetadata = processingResult.metadata;
         
-        const taskParameters = taskDetection.parameters || taskMetadata || { content: messageContent };
-        
-        try {
-          // Process as a task with chat context
-          const taskResult = await this.processTask(taskParameters, taskContext);
-          
-          // Format the task result for chat display
-          response = this.formatTaskResponse(taskResult, taskDetection.type || taskType);
-          responseType = 'task';
-          responseMetadata = {
-            taskType: taskDetection.type || taskType || 'general',
-            model: taskResult.model || 'unknown',
-            status: 'success'
-          };
-          
-          // Add system message about task execution (optional)
+        // Add system message about task execution if it was a task
+        if (processingResult.type === 'task') {
           await session.addMessage('system', `Task executed: ${taskDetection.type || taskType || 'general'}`);
-        } catch (error) {
-          console.error('Task processing error:', error);
-          response = `I encountered an error while processing your task: ${error.message}`;
-          responseMetadata = { status: 'error', error: error.message };
         }
-      } else {
-        // Process as normal conversational message
-        const fullPrompt = await session.getContextualPrompt(contextualPrompt);
-        
-        try {
-          response = await this.processTask(fullPrompt);
-        } catch (error) {
-          console.error('AI processing error:', error);
-          response = "I'm sorry, I encountered an error processing your request. Please try again or rephrase your question.";
-          responseMetadata = { status: 'error', error: error.message };
-        }
+      } catch (error) {
+        console.error('Processing error:', error);
+        response = `I encountered an error while processing your request: ${error.message}`;
+        responseMetadata = { status: 'error', error: error.message };
       }
       
       // Add AI response to history
@@ -256,6 +238,11 @@ class AIOrchestrationService {
       return taskResult;
     }
     
+    // Handle reasoning format with steps
+    if (taskResult.displayFormat === 'reasoning' && taskResult.steps) {
+      return `🧠 **Reasoning Analysis**\n\n${taskResult.content}\n\n${taskResult.steps.map(s => `▫️ ${s.content}`).join('\n')}`;
+    }
+    
     // Format based on task type
     if (taskType === 'document_creation' && taskResult.document) {
       return `✅ Document created successfully: "${taskResult.document.title}"\n\nYou can access it here: ${taskResult.document.url}`;
@@ -277,6 +264,87 @@ class AIOrchestrationService {
     
     // Default formatting for other task types
     return `Task completed successfully.\n\nResult: ${JSON.stringify(taskResult, null, 2)}`;
+  }
+  
+  /**
+   * Process a unified request (chat or task)
+   * @param {Object} request - The unified request object
+   * @param {String} request.content - The message content
+   * @param {Object} request.metadata - Additional metadata
+   * @param {Array} request.context - Chat history context
+   * @returns {Promise<Object>} - Standardized response object
+   */
+  async processUnifiedRequest(request) {
+    // Determine if this is a task request based on metadata or content
+    const isTask = request.metadata.isTask || 
+                  (request.metadata.taskType && request.metadata.taskType !== 'chat');
+    
+    return isTask ? 
+      await this._processTaskRequest(request) :
+      await this._processChatRequest(request);
+  }
+
+  /**
+   * Process a task request
+   * @param {Object} request - The request object
+   * @returns {Promise<Object>} - Standardized response
+   */
+  async _processTaskRequest(request) {
+    console.log('Processing as task:', request.metadata.taskType || 'general');
+    
+    // Create task context
+    const taskContext = {
+      chatHistory: request.context,
+      attachments: request.metadata.attachments,
+      ...request.metadata
+    };
+    
+    // Create task parameters
+    const taskParameters = {
+      content: request.content,
+      ...request.metadata
+    };
+    
+    // Process the task
+    const taskResult = await this.processTask(taskParameters, taskContext);
+    
+    return {
+      content: this.formatTaskResponse(taskResult, request.metadata.taskType),
+      type: 'task',
+      metadata: {
+        taskType: request.metadata.taskType || 'general',
+        model: taskResult.model || 'unknown',
+        status: 'success'
+      }
+    };
+  }
+
+  /**
+   * Process a chat request
+   * @param {Object} request - The request object
+   * @returns {Promise<Object>} - Standardized response
+   */
+  async _processChatRequest(request) {
+    console.log('Processing as chat message');
+    
+    // Analyze the complexity
+    const analysis = await this.analyzer.analyzeTask({ content: request.content });
+    
+    // Route to appropriate model
+    const chatResponse = await this.router.routeByComplexity(
+      { content: request.content },
+      analysis.complexity,
+      { chatHistory: request.context }
+    );
+    
+    return {
+      content: chatResponse.result,
+      type: 'chat',
+      metadata: {
+        model: chatResponse.model,
+        complexity: analysis.complexity
+      }
+    };
   }
 
   /**
