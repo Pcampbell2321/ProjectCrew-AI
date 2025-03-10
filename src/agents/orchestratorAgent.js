@@ -37,8 +37,33 @@ class OrchestratorAgent {
     const startTime = Date.now();
     
     try {
-      // First determine the request type using a classifier
-      const requestType = await this.classifyRequest(userInput);
+      // Check if request has a specific command
+      let requestType;
+      let cleanInput = userInput;
+      
+      if (userInput.startsWith('/')) {
+        const commandMatch = userInput.match(/^\/(\w+)\s+(.*)/);
+        if (commandMatch) {
+          const command = commandMatch[1].toLowerCase();
+          cleanInput = commandMatch[2];
+          
+          // Map commands to request types
+          const commandMap = {
+            'code': 'code-generation',
+            'review': 'code-review',
+            'meeting': 'meeting-actions',
+            'document': 'documentation-generate',
+            'plan': 'planning',
+            'search': 'code-search'
+          };
+          
+          requestType = commandMap[command] || 'project-understanding';
+        }
+      } else {
+        // Determine the request type using a classifier
+        requestType = await this.classifyRequest(userInput);
+      }
+      
       console.log('Request classified as:', requestType);
       
       // Get the appropriate agent and method
@@ -46,7 +71,7 @@ class OrchestratorAgent {
       console.log('Selected agent:', agent.constructor.name, 'with method:', method);
       
       // Process with the selected agent
-      const result = await this.executeAgentMethod(agent, method, userInput, context);
+      const result = await this.executeAgentMethod(agent, method, cleanInput, context);
       
       // Track performance
       this.trackAgentPerformance(agent.constructor.name, method, startTime);
@@ -64,27 +89,98 @@ class OrchestratorAgent {
     const lowerInput = input.toLowerCase();
     
     if (lowerInput.includes('generate code') || lowerInput.includes('write code') || 
-        lowerInput.includes('create function') || lowerInput.includes('implement')) {
+        lowerInput.includes('create function') || lowerInput.includes('implement') ||
+        lowerInput.includes('code for') || lowerInput.includes('script for')) {
       return 'code-generation';
     } else if (lowerInput.includes('review code') || lowerInput.includes('check code') || 
-               lowerInput.includes('improve code') || lowerInput.includes('fix code')) {
+               lowerInput.includes('improve code') || lowerInput.includes('fix code') ||
+               lowerInput.includes('optimize code') || lowerInput.includes('refactor')) {
       return 'code-review'; 
     } else if (lowerInput.includes('meeting') || lowerInput.includes('action items') || 
-               lowerInput.includes('minutes') || lowerInput.includes('summary')) {
+               lowerInput.includes('minutes') || lowerInput.includes('summary') ||
+               lowerInput.includes('discussion') || lowerInput.includes('talked about')) {
       return 'meeting-actions';
     } else if (lowerInput.includes('document') || lowerInput.includes('documentation') || 
-               lowerInput.includes('wiki') || lowerInput.includes('guide')) {
-      return 'documentation';
+               lowerInput.includes('wiki') || lowerInput.includes('guide') ||
+               lowerInput.includes('manual') || lowerInput.includes('instructions')) {
+      return 'documentation-generate';
     } else if (lowerInput.includes('plan') || lowerInput.includes('sprint') || 
-               lowerInput.includes('task') || lowerInput.includes('schedule')) {
+               lowerInput.includes('task') || lowerInput.includes('schedule') ||
+               lowerInput.includes('timeline') || lowerInput.includes('milestone')) {
       return 'planning';
     } else if (lowerInput.includes('search code') || lowerInput.includes('find code') || 
-               lowerInput.includes('explain code') || lowerInput.includes('how does code')) {
+               lowerInput.includes('explain code') || lowerInput.includes('how does code') ||
+               lowerInput.includes('what does this code') || lowerInput.includes('understand code')) {
       return 'code-search';
+    }
+    
+    // Try to use AI-based classification if available
+    try {
+      const classificationPrompt = `
+Analyze this user request and determine which agent should handle it:
+
+User Request:
+"${input}"
+
+Available Agents:
+1. ProjectUnderstandingAgent - General project questions, document analysis
+2. CodeGenerationAgent - Code creation, script generation
+3. CodeReviewAgent - Code improvement, bug detection  
+4. DocumentationAgent - Documentation creation/updates
+5. MeetingActionItemAgent - Meeting notes processing
+6. PlanningAgent - Task planning, project timelines
+7. CodeSearchAgent - Code explanation, code search
+
+Respond ONLY with the agent name most appropriate for this request.`;
+
+      const response = await this.agents.projectUnderstanding._callGeminiAPI(classificationPrompt);
+      
+      if (response && response.candidates && response.candidates.length > 0) {
+        const agentName = response.candidates[0].content.parts[0].text.trim();
+        const agentType = this.validateAgentChoice(agentName);
+        
+        // Map agent names to request types
+        const agentTypeMap = {
+          'projectUnderstanding': 'project-understanding',
+          'codeGeneration': 'code-generation',
+          'codeReview': 'code-review',
+          'documentation': 'documentation-generate',
+          'meetingActions': 'meeting-actions',
+          'planning': 'planning',
+          'codeSearch': 'code-search'
+        };
+        
+        return agentTypeMap[agentType] || 'project-understanding';
+      }
+    } catch (error) {
+      console.error('AI classification failed:', error);
+      // Continue with fallback
     }
     
     // Default to project understanding
     return 'project-understanding';
+  }
+
+  validateAgentChoice(agentName) {
+    const validAgents = {
+      'projectunderstandingagent': 'projectUnderstanding',
+      'projectunderstanding': 'projectUnderstanding',
+      'codegenerationagent': 'codeGeneration',
+      'codegeneration': 'codeGeneration',
+      'codereviewagent': 'codeReview',
+      'codereview': 'codeReview',
+      'documentationagent': 'documentation',
+      'documentation': 'documentation',
+      'meetingactionitemagent': 'meetingActions',
+      'meetingactions': 'meetingActions',
+      'planningagent': 'planning',
+      'planning': 'planning',
+      'codesearchagent': 'codeSearch',
+      'codesearch': 'codeSearch'
+    };
+
+    const cleanName = agentName.toLowerCase().replace(/[^a-z]/g, '');
+    return validAgents[cleanName] || 'projectUnderstanding';
   }
 
   selectAgent(requestType) {
@@ -217,6 +313,19 @@ class OrchestratorAgent {
   }
 
   formatForChat(result, agentName, method) {
+    // Add agent badge to the response
+    const agentBadges = {
+      'ProjectUnderstandingAgent': ['project', 'Project Analysis'],
+      'CodeGenerationAgent': ['code', 'Code Generation'],
+      'CodeReviewAgent': ['code', 'Code Review'],
+      'DocumentationAgent': ['docs', 'Documentation'],
+      'MeetingActionItemAgent': ['project', 'Meeting Analysis'],
+      'PlanningAgent': ['project', 'Planning'],
+      'CodeSearchAgent': ['code', 'Code Search']
+    };
+
+    const [badgeType, badgeText] = agentBadges[agentName] || ['project', 'AI'];
+    
     // Format the result based on the agent type
     const formatters = {
       'ProjectUnderstandingAgent': (result) => {
@@ -308,12 +417,20 @@ class OrchestratorAgent {
     };
 
     const formatter = formatters[agentName];
+    let formattedContent = '';
+    
     if (formatter) {
-      return formatter(result, method);
+      formattedContent = formatter(result, method);
+    } else {
+      // Default formatting if no specific formatter is found
+      formattedContent = `## Result from ${agentName}\n\n${JSON.stringify(result, null, 2)}`;
     }
     
-    // Default formatting if no specific formatter is found
-    return `## Result from ${agentName}\n\n${JSON.stringify(result, null, 2)}`;
+    // Add the agent badge to the response
+    return `<div class="agent-response">
+      <div class="agent-badge ${badgeType}">${badgeText}</div>
+      ${formattedContent}
+    </div>`;
   }
 
   formatList(items) {
