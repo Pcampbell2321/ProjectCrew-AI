@@ -57,7 +57,11 @@ app.use(session({
   resave: false,
   saveUninitialized: true,
   name: 'sessionId',
-  cookie: { secure: process.env.NODE_ENV === 'production' }
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax', // Needed for OAuth cross-domain flow
+    httpOnly: true
+  }
 }));
 
 // Authentication middleware
@@ -68,9 +72,8 @@ app.use(passport.session());
 const csrfProtection = csurf({
   cookie: {
     key: '_csrf',
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    httpOnly: true
+    secure: process.env.NODE_ENV === 'production', // Requires HTTPS in production
+    sameSite: 'lax' // Allows OAuth redirects
   }
 });
 
@@ -138,7 +141,7 @@ app.get('/api/drive/files', csrfProtection, async (req, res) => {
 });
 
 // Authentication routes
-app.get('/auth/google', csrfProtection,
+app.get('/auth/google',
   passport.authenticate('google', { 
     prompt: 'select_account',
     accessType: 'offline' 
