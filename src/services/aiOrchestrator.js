@@ -454,7 +454,7 @@ class AIOrchestrationService {
   }
   
   _handleOrchestrationError(error, analysis) {
-    const enhancedError = new Error(`Projectcrew AI processing failed: ${error.message}`);
+    const enhancedError = new Error(`ProjectCrew AI processing failed: ${error.message}`);
     enhancedError.metadata = {
       timestamp: new Date().toISOString(),
       analysis,
@@ -494,7 +494,7 @@ class AIOrchestrationService {
    * @param {Object} metrics - Metrics data
    */
   logTaskMetrics(metrics) {
-    console.log('[Projectcrew AI] Task Metrics:', JSON.stringify(metrics));
+    console.log('[ProjectCrew AI] Task Metrics:', JSON.stringify(metrics));
     // In a production environment, this would send to a monitoring service
   }
 
@@ -550,7 +550,7 @@ class AIOrchestrationService {
    * @private
    */
   _enhanceError(error, context) {
-    const enhancedError = new Error(`Projectcrew AI failed to process chat message: ${error.message}`);
+    const enhancedError = new Error(`ProjectCrew AI failed to process chat message: ${error.message}`);
     enhancedError.originalError = error;
     enhancedError.context = context;
     enhancedError.timestamp = new Date().toISOString();

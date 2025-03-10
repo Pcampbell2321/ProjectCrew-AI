@@ -43,7 +43,7 @@ class DeepseekHandler {
       
       return this._formatDeepseekResponse(response, safeContext);
     } catch (error) {
-      console.error('[Projectcrew AI] DeepSeek Failed:', {
+      console.error('[ProjectCrew AI] DeepSeek Failed:', {
         task: this._redactSensitive(task),
         context: this._redactSensitive(safeContext)
       });
@@ -192,10 +192,10 @@ class DeepseekHandler {
         reasoning: parsedResult.reasoning || parsedResult.steps || null
       };
     } catch (error) {
-      console.error('[Projectcrew AI] Error calling DeepSeek API:', error);
+      console.error('[ProjectCrew AI] Error calling DeepSeek API:', error);
       if (error.response) {
-        console.error('[Projectcrew AI] Response status:', error.response.status);
-        console.error('[Projectcrew AI] Response data:', error.response.data);
+        console.error('[ProjectCrew AI] Response status:', error.response.status);
+        console.error('[ProjectCrew AI] Response data:', error.response.data);
       }
       throw new Error(`DeepSeek API error: ${error.message}`);
     }

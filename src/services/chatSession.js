@@ -97,7 +97,7 @@ class ChatSession {
       metadata: {
         userId: this.userId,
         lastUpdated: new Date().toISOString(),
-        platform: 'Projectcrew AI'
+        platform: 'ProjectCrew AI'
       }
     };
 
