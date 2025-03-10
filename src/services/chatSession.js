@@ -42,6 +42,26 @@ class ChatSession {
     return this.history;
   }
 
+  /**
+   * Get compact conversation history for AI context
+   * @returns {Array} Last 3 exchanges (user + assistant pairs) with truncated content
+   */
+  async getCompactHistory() {
+    // Ensure we have fresh data
+    if (!this.history || this.history.length === 0) {
+      await this._loadExistingSession();
+    }
+
+    return this.history
+      .slice(-6) // Keep last 3 exchanges (6 messages - 3 user + 3 assistant)
+      .map(msg => ({
+        role: msg.role,
+        content: msg.content.length > 500 
+          ? msg.content.substring(0, 500) + '...' 
+          : msg.content
+      }));
+  }
+
   async _createNewSession() {
     this.sessionId = `chat-${Date.now()}-${this.userId}`;
     this.history = [{
