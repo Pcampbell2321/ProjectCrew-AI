@@ -86,13 +86,18 @@ async function sendMessage(message) {
   try {
     if (!message.trim()) return;
     
+    // Check for task command
+    const isTask = message.startsWith('/task') || message.startsWith('/process');
+    const cleanMessage = isTask ? message.replace(/^\/task\s*/i, '') : message;
+    
     showTypingIndicator();
     const messageInput = document.getElementById('messageInput');
     messageInput.disabled = true;
     
     const formData = new FormData();
-    formData.append('message', message);
+    formData.append('message', cleanMessage);
     formData.append('sessionId', currentSessionId);
+    formData.append('isTask', isTask);
     
     // Handle file attachments
     const fileInput = document.getElementById('fileAttachment');
@@ -123,7 +128,22 @@ async function sendMessage(message) {
     currentSessionId = data.sessionId;
     
     appendMessage('user', message, fileInput.files.length > 0 ? [{name: fileInput.files[0].name}] : []);
-    appendMessage('assistant', data.response);
+    
+    if (isTask) {
+      appendMessage('assistant', `
+        <div class="task-result">
+          <h4>Task Processed</h4>
+          <div class="task-meta">
+            <span>Model: ${data.model || 'Default'}</span>
+            <span>Complexity: ${data.complexity || 'Standard'}</span>
+            <span>Processing Time: ${data.duration || '0'}ms</span>
+          </div>
+          <div class="task-content">${data.response}</div>
+        </div>
+      `);
+    } else {
+      appendMessage('assistant', data.response);
+    }
     
     // Reset file input and message input
     fileInput.value = '';

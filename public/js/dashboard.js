@@ -13,12 +13,6 @@ class AIDashboard {
   }
   
   initElements() {
-    // Task elements
-    this.taskContentEl = document.getElementById('taskContent');
-    this.requireReasoningEl = document.getElementById('requireReasoning');
-    this.complexityOverrideEl = document.getElementById('complexityOverride');
-    this.submitTaskBtn = document.getElementById('submitTaskBtn');
-    
     // Result elements
     this.modelUsedEl = document.getElementById('modelUsed');
     this.complexityScoreEl = document.getElementById('complexityScore');
@@ -37,9 +31,6 @@ class AIDashboard {
   }
   
   initEventListeners() {
-    // Task submission
-    this.submitTaskBtn.addEventListener('click', () => this.submitTask());
-    
     // Action buttons
     this.saveToDriveBtn.addEventListener('click', () => this.saveToDrive());
     this.exportToZohoBtn.addEventListener('click', () => this.exportToZoho());
@@ -288,7 +279,7 @@ class AIDashboard {
     
     switch (target) {
       case 'tasks':
-        taskContainer.style.display = 'grid';
+        taskContainer.style.display = 'block';
         historyContainer.style.display = 'none';
         break;
       case 'history':
@@ -308,11 +299,6 @@ class AIDashboard {
   }
   
   showTaskInput() {
-    // Clear the form and results
-    this.taskContentEl.value = '';
-    this.requireReasoningEl.checked = false;
-    this.complexityOverrideEl.value = 'auto';
-    
     this.aiOutputEl.innerHTML = '';
     this.modelUsedEl.textContent = '';
     this.complexityScoreEl.textContent = '';

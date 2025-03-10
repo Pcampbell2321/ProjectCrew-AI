@@ -75,35 +75,24 @@
       </header>
       
       <div class="task-container">
-        <div class="task-input">
-          <h2>Submit New Task</h2>
-          <textarea id="taskContent" placeholder="Describe your task..."></textarea>
-          <div class="context-options">
-            <label>
-              <input type="checkbox" id="requireReasoning"> Requires Deep Reasoning
-            </label>
-            <div class="select-wrapper">
-              <label for="complexityOverride">Complexity:</label>
-              <select id="complexityOverride">
-                <option value="auto">Auto-detect Complexity</option>
-                <option value="low">Low Complexity</option>
-                <option value="medium">Medium Complexity</option>
-                <option value="high">High Complexity</option>
-              </select>
-            </div>
-          </div>
-          <button id="submitTaskBtn" class="primary">Process Task</button>
-        </div>
-        
         <div class="result-display">
-          <div class="model-metadata">
-            <span id="modelUsed"></span>
-            <span id="complexityScore"></span>
-            <span id="processingTime"></span>
-          </div>
           <div class="chat-container">
             <div class="chat-history" id="chatHistory">
-              <!-- Messages will be inserted here -->
+              <!-- Initial assistant message -->
+              <div class="chat-message assistant-message">
+                <div class="message-content">
+                  <p>Welcome to ProjectCrew AI! You can:</p>
+                  <ul>
+                    <li>Type tasks directly in the chat</li>
+                    <li>Use <code>/task</code> followed by your task description</li>
+                    <li>Attach files for context-aware processing</li>
+                  </ul>
+                </div>
+                <div class="message-meta">
+                  <span>AI Assistant</span>
+                  <span>Just now</span>
+                </div>
+              </div>
             </div>
             
             <div class="chat-controls">
@@ -135,10 +124,6 @@
         </div>
       </div>
       
-      <div class="history-container" style="display: none;">
-        <h2>Task History</h2>
-        <div id="historyList" class="history-list"></div>
-      </div>
     </main>
   </div>
   
