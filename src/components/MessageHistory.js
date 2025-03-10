@@ -1,10 +1,20 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 
 /**
  * Unified Message History Component
  * Displays both chat messages and task results
  */
 const MessageHistory = ({ messages }) => {
+  const messagesEndRef = useRef(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
   if (!messages || messages.length === 0) {
     return (
       <div className="empty-message-container">
@@ -13,10 +23,17 @@ const MessageHistory = ({ messages }) => {
     );
   }
 
+  // Format timestamp to HH:MM format
+  const formatTime = (timestamp) => {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
   return (
     <div className="message-container">
       {messages.map((msg, index) => (
-        <div key={index} className={`message ${msg.type || 'chat'}`}>
+        <div key={index} className={`message ${msg.type || (msg.role === 'user' ? 'user' : 'system')}`}>
           {msg.type === 'task' ? (
             <div className="task-result">
               <div className="task-header">
@@ -36,22 +53,40 @@ const MessageHistory = ({ messages }) => {
               <div className="task-content">
                 {renderTaskContent(msg)}
               </div>
+              
+              <div className="message-time">
+                {formatTime(msg.timestamp)}
+                {msg.status === 'sent' && ' ✓'}
+                {msg.status === 'delivered' && ' ✓✓'}
+              </div>
             </div>
           ) : (
             <div className="chat-message">
-              <div className="message-header">
-                <span className="role">{msg.role || 'assistant'}</span>
-                {msg.metadata?.model && (
-                  <span className="model-badge">{msg.metadata.model}</span>
-                )}
-              </div>
               <div className="message-content">
-                {msg.content}
+                <p>{msg.content}</p>
+                
+                {msg.metadata?.attachments && msg.metadata.attachments.length > 0 && (
+                  <div className="attachments">
+                    {msg.metadata.attachments.map((file, idx) => (
+                      <div key={idx} className="file-attachment">
+                        <span className="file-icon">📎</span>
+                        <span className="file-name">{file.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                <div className="message-time">
+                  {formatTime(msg.timestamp)}
+                  {msg.status === 'sent' && ' ✓'}
+                  {msg.status === 'delivered' && ' ✓✓'}
+                </div>
               </div>
             </div>
           )}
         </div>
       ))}
+      <div ref={messagesEndRef} />
     </div>
   );
 };

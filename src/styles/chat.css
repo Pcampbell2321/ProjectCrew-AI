@@ -1,0 +1,370 @@
+/* Main container */
+.chat-interface {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #f0f2f5;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Message history area */
+.message-container {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  background: #efeae2;
+  background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAAQ0lEQVR4nO3OMQEAAAgDoJnc6FrDOejLQSSJiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIg8ZwM1pgAB7n7w0wAAAABJRU5ErkJggg==');
+}
+
+/* Empty state */
+.empty-message-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  color: #8696a0;
+  font-size: 1.1rem;
+  text-align: center;
+  padding: 20px;
+}
+
+/* Input container */
+.chat-input-container {
+  padding: 16px;
+  background: #f0f2f5;
+  border-top: 1px solid #e9edef;
+}
+
+.input-wrapper {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  background: #fff;
+  border-radius: 8px;
+  padding: 8px;
+  border: 1px solid #e9edef;
+}
+
+/* Message input */
+.message-input {
+  flex: 1;
+  min-height: 40px;
+  max-height: 120px;
+  border: none;
+  resize: none;
+  padding: 8px 12px;
+  font-size: 15px;
+  line-height: 1.5;
+  background: transparent;
+}
+
+.message-input:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Input controls */
+.input-controls {
+  display: flex;
+  align-items: center;
+}
+
+/* Message bubbles */
+.message {
+  max-width: 80%;
+  margin-bottom: 12px;
+  position: relative;
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+.message.user {
+  margin-left: auto;
+  background: #d9fdd3;
+  border-radius: 8px 8px 0 8px;
+}
+
+.message.system, .message.assistant {
+  background: #fff;
+  border-radius: 8px 8px 8px 0;
+}
+
+.message-content {
+  word-break: break-word;
+}
+
+/* Timestamp */
+.message-time {
+  font-size: 0.75rem;
+  color: #667781;
+  margin-top: 4px;
+  text-align: right;
+}
+
+/* Send button */
+.send-button {
+  background: #00a884;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.send-button:disabled {
+  background: #8696a0;
+  cursor: not-allowed;
+}
+
+/* Emoji picker */
+.emoji-picker {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  padding: 8px;
+  cursor: pointer;
+  color: #54656f;
+}
+
+/* File attachments */
+.attachments {
+  margin-top: 8px;
+}
+
+.file-attachment {
+  display: flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin-top: 4px;
+}
+
+.file-icon {
+  margin-right: 6px;
+}
+
+.file-name {
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+/* Typing indicator */
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.typing-indicator span {
+  height: 8px;
+  width: 8px;
+  background: #b6b9bb;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 4px;
+  animation: typing 1.4s infinite ease-in-out;
+}
+
+.typing-indicator span:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.typing-indicator span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-indicator span:nth-child(3) {
+  animation-delay: 0.4s;
+  margin-right: 0;
+}
+
+@keyframes typing {
+  0%, 60%, 100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-6px);
+  }
+}
+
+/* Input mode indicator */
+.input-mode-indicator {
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+  color: #54656f;
+}
+
+/* Task suggestions */
+.task-suggestions {
+  background: white;
+  border-radius: 8px;
+  margin-top: 8px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  overflow: hidden;
+}
+
+.task-suggestion-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid #f0f2f5;
+}
+
+.task-suggestion-item:hover {
+  background: #f0f2f5;
+}
+
+.task-suggestion-item .command {
+  font-weight: bold;
+  color: #00a884;
+}
+
+.task-suggestion-item .description {
+  color: #8696a0;
+  font-size: 0.9rem;
+}
+
+/* Mode toggle button */
+.mode-toggle {
+  background: #f0f2f5;
+  border: 1px solid #e9edef;
+  border-radius: 16px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  color: #54656f;
+  cursor: pointer;
+  margin-top: 8px;
+}
+
+.mode-toggle.task {
+  background: #e7f8e1;
+  color: #00a884;
+}
+
+/* Task result styling */
+.task-result {
+  padding: 12px;
+  background: white;
+  border-radius: 8px;
+  border-left: 3px solid #00a884;
+}
+
+.task-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.task-icon {
+  margin-right: 8px;
+  font-size: 1.2rem;
+}
+
+.task-header h4 {
+  margin: 0;
+  flex: 1;
+}
+
+.status {
+  font-size: 0.9rem;
+}
+
+.status.error {
+  color: #e74c3c;
+}
+
+.status.success {
+  color: #00a884;
+}
+
+.model-info {
+  font-size: 0.8rem;
+  color: #8696a0;
+  margin-bottom: 8px;
+}
+
+.task-content {
+  margin-top: 8px;
+}
+
+/* Reasoning steps */
+.reasoning-steps {
+  margin-top: 12px;
+}
+
+.reasoning-intro {
+  margin-bottom: 8px;
+}
+
+.steps-container {
+  border-left: 2px solid #00a884;
+  padding-left: 12px;
+}
+
+.reasoning-step {
+  margin-bottom: 8px;
+}
+
+.step-number {
+  font-weight: bold;
+  color: #00a884;
+}
+
+/* Document link */
+.document-link {
+  margin-top: 8px;
+}
+
+.document-link a {
+  display: inline-block;
+  padding: 6px 12px;
+  background: #f0f2f5;
+  border-radius: 16px;
+  color: #00a884;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+/* Charts container */
+.charts-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.chart {
+  flex: 1;
+  min-width: 200px;
+  border: 1px solid #e9edef;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.chart h5 {
+  margin: 0;
+  padding: 8px;
+  background: #f0f2f5;
+}
+
+.chart img {
+  width: 100%;
+  height: auto;
+}
+
+/* Input actions */
+.input-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+}
