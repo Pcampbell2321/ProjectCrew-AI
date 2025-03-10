@@ -19,34 +19,75 @@ class DeepseekHandler {
    * @returns {Promise<Object>} - The processed result
    */
   async processReasoningTask(task, context = {}) {
+    // Validate task input
+    if (!task || typeof task !== 'object') {
+      throw new Error('Invalid task format - expected object');
+    }
+
+    // Ensure context has required history format
+    const safeContext = {
+      chatHistory: Array.isArray(context.chatHistory) 
+        ? context.chatHistory 
+        : [],
+      ...context
+    };
+
     try {
       // Include chat history in context if available
-      if (context.chatHistory) {
+      if (safeContext.chatHistory && safeContext.chatHistory.length > 0) {
         console.log('Including chat history in reasoning task');
       }
       
-      const prompt = this.buildReasoningPrompt(task, context);
-      const response = await this.callDeepseekAPI(prompt, context);
+      const prompt = this.buildReasoningPrompt(task, safeContext);
+      const response = await this.callDeepseekAPI(prompt, safeContext);
       
-      // Format response for unified interface with standardized format
-      return {
-        content: response.content,
-        model: this.model.id,
-        type: 'deepseek',
-        reasoning: response.reasoning || null,
-        taskContext: context.chatHistory ? 'chat_integrated' : 'standalone',
-        displayFormat: 'reasoning',
-        steps: response.reasoning ? this.formatReasoningSteps(response.reasoning) : null,
-        metadata: {
-          model: this.model.id,
-          reasoningType: 'stepwise',
-          displayType: 'enhanced'
-        }
-      };
+      return this._formatDeepseekResponse(response, safeContext);
     } catch (error) {
-      console.error('Error in DeepSeek reasoning task:', error);
+      console.error('DeepSeek Failed:', {
+        task: this._redactSensitive(task),
+        context: this._redactSensitive(safeContext)
+      });
       throw new Error(`DeepSeek API error: ${error.message}`);
     }
+  }
+
+  /**
+   * Format DeepSeek response for unified interface
+   * @param {Object} response - The raw API response
+   * @param {Object} context - The context used for the request
+   * @returns {Object} - Formatted response
+   * @private
+   */
+  _formatDeepseekResponse(response, context) {
+    return {
+      content: response.content || 'No response content',
+      model: this.model.id,
+      type: 'reasoning',
+      reasoning: response.reasoning || null,
+      taskContext: context.chatHistory.length > 0 ? 'chat_integrated' : 'standalone',
+      displayFormat: 'reasoning',
+      steps: response.reasoning ? this.formatReasoningSteps(response.reasoning) : null,
+      metadata: {
+        model: this.model.id,
+        reasoningType: 'stepwise',
+        displayType: 'enhanced',
+        contextType: context.chatHistory.length > 0 ? 'chat' : 'direct',
+        modelVersion: this.model.version || '1.0'
+      }
+    };
+  }
+
+  /**
+   * Redact sensitive information from logs
+   * @param {Object} data - The data to redact
+   * @returns {Object} - Redacted data
+   * @private
+   */
+  _redactSensitive(data) {
+    const sensitiveKeys = ['apiKey', 'password', 'token'];
+    return JSON.parse(JSON.stringify(data, (key, value) => {
+      return sensitiveKeys.includes(key) ? '***REDACTED***' : value;
+    }));
   }
 
   /**

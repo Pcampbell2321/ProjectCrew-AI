@@ -149,18 +149,20 @@ class AIOrchestrationService {
    * @returns {Promise<Object>} - Response and session ID
    */
   async processChatMessage(userId, sessionId, message, attachments = [], options = {}) {
+    let session;
     try {
-      const session = new ChatSession(userId, sessionId);
+      session = new ChatSession(userId, sessionId);
       await session.initialize();
       
-      // Handle message object or string format for backward compatibility
-      const messageContent = typeof message === 'string' ? message : message.content;
-      const messageMode = typeof message === 'string' ? 'chat' : (message.mode || 'chat');
-      const taskType = typeof message === 'string' ? null : message.taskType;
-      const taskMetadata = typeof message === 'string' ? null : message.metadata;
+      // Validate and normalize message format
+      const normalizedMessage = this._normalizeMessageInput(message);
+      const messageContent = normalizedMessage.content;
+      const messageMode = normalizedMessage.mode || 'auto';
+      const taskType = normalizedMessage.taskType;
+      const taskMetadata = normalizedMessage.metadata;
       
-      // Add user message to history
-      await session.addMessage('user', messageContent);
+      // Add user message to history with sanitization
+      await session.addMessage('user', this._sanitizeContent(messageContent));
       
       // Get contextual prompt with attachment info if present
       let contextualPrompt = messageContent;
@@ -174,7 +176,7 @@ class AIOrchestrationService {
       let taskDetection = { isTask: messageMode === 'task', type: taskType, parameters: taskMetadata };
       
       // If not explicitly marked as task, detect from content
-      if (!taskDetection.isTask && !taskType) {
+      if (messageMode === 'auto' && !taskType) {
         taskDetection = await this.taskDetector.detectTaskIntent(messageContent);
       }
       
@@ -184,7 +186,7 @@ class AIOrchestrationService {
       
       // Unified processing path
       try {
-        const processingResult = await this.processUnifiedRequest({
+        const processingResult = await this._processWithFallback({
           content: messageContent,
           metadata: {
             attachments,
@@ -213,16 +215,31 @@ class AIOrchestrationService {
       // Add AI response to history
       await session.addMessage('assistant', response);
       
-      return { 
-        response, 
-        sessionId: session.sessionId,
+      return this._formatOutput({
+        content: response,
         type: responseType,
-        wasTask: taskDetection.isTask || options.taskMode,
         metadata: responseMetadata
-      };
+      }, session);
     } catch (error) {
       console.error('Chat message processing error:', error);
-      throw new Error(`Failed to process chat message: ${error.message}`);
+      
+      // Handle session history corruption
+      if (session && error.message.includes('history')) {
+        console.warn('Session history corruption detected, creating new session');
+        await session._createNewSession();
+        return this.processChatMessage(userId, null, message, attachments, options);
+      }
+      
+      // Add error message to history if session exists
+      if (session) {
+        await session.addMessage('system', `Error: ${error.message}`);
+      }
+
+      throw this._enhanceError(error, {
+        userId,
+        sessionId: session ? session.sessionId : null,
+        message: typeof message === 'string' ? message : message.content
+      });
     }
   }
   
@@ -282,6 +299,48 @@ class AIOrchestrationService {
     return isTask ? 
       await this._processTaskRequest(request) :
       await this._processChatRequest(request);
+  }
+
+  /**
+   * Process with fallback mechanism
+   * @param {Object} request - The request to process
+   * @returns {Promise<Object>} - Processing result
+   * @private
+   */
+  async _processWithFallback(request) {
+    try {
+      // Try processing with unified request handler
+      return await this.processUnifiedRequest(request);
+    } catch (error) {
+      console.warn(`Primary processing failed, attempting fallback: ${error.message}`);
+      
+      // If the error is related to a specific model, try with a simpler model
+      if (error.message.includes('API') || error.message.includes('model')) {
+        try {
+          // Fallback to Gemini Flash for simplicity and reliability
+          const fallbackResult = await this.geminiHandler.processSimpleTask(
+            { content: request.content },
+            { fallback: true }
+          );
+          
+          return {
+            content: fallbackResult,
+            type: 'chat',
+            metadata: {
+              model: 'gemini-flash-fallback',
+              status: 'fallback_success',
+              originalError: error.message
+            }
+          };
+        } catch (fallbackError) {
+          // If fallback also fails, throw enhanced error
+          throw new Error(`Both primary and fallback processing failed: ${error.message}, Fallback error: ${fallbackError.message}`);
+        }
+      }
+      
+      // For other types of errors, rethrow
+      throw error;
+    }
   }
 
   /**
@@ -437,6 +496,65 @@ class AIOrchestrationService {
   logTaskMetrics(metrics) {
     console.log('AI Task Metrics:', JSON.stringify(metrics));
     // In a production environment, this would send to a monitoring service
+  }
+
+  /**
+   * Normalize message input to standard format
+   * @param {String|Object} message - The message input
+   * @returns {Object} - Normalized message object
+   * @private
+   */
+  _normalizeMessageInput(message) {
+    return typeof message === 'string' 
+      ? { content: message, mode: 'auto' }
+      : message;
+  }
+
+  /**
+   * Sanitize content to prevent oversized inputs
+   * @param {String} content - The content to sanitize
+   * @returns {String} - Sanitized content
+   * @private
+   */
+  _sanitizeContent(content) {
+    return String(content || '').slice(0, 10000); // Prevent oversized content
+  }
+
+  /**
+   * Format output response
+   * @param {Object} result - The processing result
+   * @param {Object} session - The chat session
+   * @returns {Object} - Formatted output
+   * @private
+   */
+  _formatOutput(result, session) {
+    return {
+      response: result.content,
+      sessionId: session.sessionId,
+      type: result.type || 'chat',
+      wasTask: result.type === 'task',
+      metadata: {
+        ...(result.metadata || {}),
+        model: result.metadata?.model || 'unknown',
+        status: result.metadata?.status || 'success',
+        timestamp: new Date().toISOString()
+      }
+    };
+  }
+
+  /**
+   * Enhance error with additional context
+   * @param {Error} error - The original error
+   * @param {Object} context - Additional context
+   * @returns {Error} - Enhanced error
+   * @private
+   */
+  _enhanceError(error, context) {
+    const enhancedError = new Error(`Failed to process chat message: ${error.message}`);
+    enhancedError.originalError = error;
+    enhancedError.context = context;
+    enhancedError.timestamp = new Date().toISOString();
+    return enhancedError;
   }
   
   /**

@@ -52,13 +52,19 @@ class ChatSession {
       await this._loadExistingSession();
     }
 
+    // Ensure history exists and is an array
+    if (!Array.isArray(this.history)) {
+      this.history = [];
+    }
+
+    // Return last 6 messages with safe truncation
     return this.history
       .slice(-6) // Keep last 3 exchanges (6 messages - 3 user + 3 assistant)
       .map(msg => ({
-        role: msg.role,
-        content: msg.content.length > 500 
-          ? msg.content.substring(0, 500) + '...' 
-          : msg.content
+        role: msg.role || 'user', // Default role
+        content: msg.content 
+          ? String(msg.content).slice(0, 500) + (String(msg.content).length > 500 ? '...' : '')
+          : ''
       }));
   }
 
