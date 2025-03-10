@@ -124,6 +124,7 @@ select {
 
 .task-meta {
   display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
   font-size: 0.8rem;
   color: var(--secondary-color);

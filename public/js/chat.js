@@ -99,6 +99,10 @@ async function sendMessage(message) {
     formData.append('sessionId', currentSessionId);
     formData.append('isTask', isTask);
     
+    // Specify agent type based on message type
+    const agentType = isTask ? 'task_agent' : 'chat_agent';
+    formData.append('agent', agentType);
+    
     // Handle file attachments
     const fileInput = document.getElementById('fileAttachment');
     if (fileInput.files.length > 0) {
@@ -112,7 +116,9 @@ async function sendMessage(message) {
       return;
     }
     
-    const response = await fetch('/api/chat/message', {
+    // Use different endpoints based on message type
+    const endpoint = isTask ? '/api/tasks/process' : '/api/chat/message';
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'X-CSRF-Token': csrfToken
@@ -130,6 +136,11 @@ async function sendMessage(message) {
     appendMessage('user', message, fileInput.files.length > 0 ? [{name: fileInput.files[0].name}] : []);
     
     if (isTask) {
+      // Verify correct agent handled the task
+      if (data.agent !== 'task_processor') {
+        console.warn('Task handled by wrong agent:', data.agent);
+      }
+      
       appendMessage('assistant', `
         <div class="task-result">
           <h4>Task Processed</h4>
@@ -137,11 +148,17 @@ async function sendMessage(message) {
             <span>Model: ${data.model || 'Default'}</span>
             <span>Complexity: ${data.complexity || 'Standard'}</span>
             <span>Processing Time: ${data.duration || '0'}ms</span>
+            <span>Agent: ${data.agent || 'Unknown'}</span>
           </div>
           <div class="task-content">${data.response}</div>
         </div>
       `);
     } else {
+      // Verify correct agent handled the chat
+      if (data.agent !== 'chat_processor') {
+        console.warn('Chat handled by wrong agent:', data.agent);
+      }
+      
       appendMessage('assistant', data.response);
     }
     
@@ -150,8 +167,14 @@ async function sendMessage(message) {
     messageInput.value = '';
     
   } catch (error) {
-    showError(`Failed to send message: ${error.message}`);
-    console.error('Send message error:', error);
+    // Enhanced error handling based on message type
+    if (isTask) {
+      showError(`Failed to process task: ${error.message}`);
+      console.error('Task processing error:', error);
+    } else {
+      showError(`Failed to send message: ${error.message}`);
+      console.error('Chat message error:', error);
+    }
   } finally {
     hideTypingIndicator();
     const messageInput = document.getElementById('messageInput');
@@ -168,12 +191,16 @@ async function startNewChat() {
     const csrfToken = await getCsrfToken();
     if (!csrfToken) return;
     
+    // Specify default agent type for new sessions
     const response = await fetch('/api/chat/start', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-CSRF-Token': csrfToken
-      }
+      },
+      body: JSON.stringify({
+        agent: 'chat_agent'
+      })
     });
     
     if (!response.ok) throw new Error('Failed to start session');
