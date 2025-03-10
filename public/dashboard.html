@@ -8,6 +8,43 @@
   <link rel="stylesheet" href="/css/dashboard.css">
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
+  <style>
+    .chat-status {
+      padding: 8px;
+      text-align: center;
+      color: #666;
+      font-style: italic;
+    }
+    
+    .error-message {
+      color: #dc3545;
+      padding: 8px;
+      border: 1px solid #f8d7da;
+      border-radius: 4px;
+      margin: 10px 0;
+    }
+    
+    .typing-indicator {
+      display: none;
+      padding: 8px;
+      font-style: italic;
+      color: #666;
+    }
+    
+    .markdown-content pre {
+      background: #f8f9fa;
+      padding: 10px;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+    
+    .attachment-preview {
+      margin: 5px 0;
+      padding: 5px;
+      background: #f8f9fa;
+      border-radius: 4px;
+    }
+  </style>
 </head>
 <body>
   <div class="dashboard-container">
@@ -65,11 +102,20 @@
             <span id="processingTime"></span>
           </div>
           <div class="ai-output" id="aiOutput"></div>
+          <div class="chat-status" id="chatStatus">Starting new chat session...</div>
+          <div class="typing-indicator" id="typingIndicator">AI is thinking...</div>
+          <div class="error-message" id="errorMessage" style="display: none"></div>
           <div class="action-buttons">
             <button id="saveToDriveBtn" disabled>Save to Drive</button>
             <button id="exportToZohoBtn" disabled>Export to Zoho</button>
             <button id="copyBtn" disabled>Copy to Clipboard</button>
           </div>
+          <form id="chatForm" class="chat-input">
+            <input type="file" id="fileAttachment" style="display: none">
+            <button type="button" onclick="document.getElementById('fileAttachment').click()">📎</button>
+            <input type="text" id="messageInput" placeholder="Type your message...">
+            <button type="submit">Send</button>
+          </form>
         </div>
       </div>
       
@@ -81,5 +127,6 @@
   </div>
   
   <script src="/js/dashboard.js"></script>
+  <script src="/js/chat.js"></script>
 </body>
 </html>

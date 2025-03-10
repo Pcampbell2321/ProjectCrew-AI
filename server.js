@@ -229,16 +229,33 @@ app.post('/api/chat/message', ensureAuthenticated, csrfProtection, [
   }
 
   try {
+    // Handle file uploads
+    const attachments = [];
+    if (req.files && req.files.attachment) {
+      const file = req.files.attachment;
+      const fileId = await driveService.createFile(
+        file.name,
+        file.data,
+        file.mimetype,
+        `chats/${req.user.id}/${req.body.sessionId || 'default'}`
+      );
+      attachments.push({ name: file.name, id: fileId });
+    }
+    
     const { message, sessionId } = req.body;
     const result = await aiService.processChatMessage(
       req.user.id,
       sessionId,
       message
     );
-    res.json(result);
+    
+    res.json({ ...result, attachments });
   } catch (error) {
     console.error('Error processing chat message:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 

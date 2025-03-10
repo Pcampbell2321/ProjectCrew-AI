@@ -138,23 +138,44 @@ class AIOrchestrationService {
    * @param {String} userId - User identifier
    * @param {String} sessionId - Chat session identifier (optional)
    * @param {String} message - User message
+   * @param {Array} attachments - Optional file attachments
    * @returns {Promise<Object>} - Response and session ID
    */
-  async processChatMessage(userId, sessionId, message) {
-    const session = new ChatSession(userId, sessionId);
-    await session.initialize();
-    
-    // Add user message to history
-    await session.addMessage('user', message);
-    
-    // Get contextual prompt
-    const contextualPrompt = await session.getContextualPrompt(message);
-    
-    // Process through AI
-    const response = await this.processTask(contextualPrompt);
-    await session.addMessage('assistant', response);
-    
-    return { response, sessionId: session.sessionId };
+  async processChatMessage(userId, sessionId, message, attachments = []) {
+    try {
+      const session = new ChatSession(userId, sessionId);
+      await session.initialize();
+      
+      // Add user message to history
+      await session.addMessage('user', message);
+      
+      // Get contextual prompt with attachment info if present
+      let contextualPrompt = message;
+      if (attachments && attachments.length > 0) {
+        contextualPrompt += `\n\n[User has attached ${attachments.length} file(s): ${
+          attachments.map(a => a.name).join(', ')
+        }]`;
+      }
+      
+      const fullPrompt = await session.getContextualPrompt(contextualPrompt);
+      
+      // Process through AI with error handling
+      let response;
+      try {
+        response = await this.processTask(fullPrompt);
+      } catch (error) {
+        console.error('AI processing error:', error);
+        response = "I'm sorry, I encountered an error processing your request. Please try again or rephrase your question.";
+      }
+      
+      // Add AI response to history
+      await session.addMessage('assistant', response);
+      
+      return { response, sessionId: session.sessionId };
+    } catch (error) {
+      console.error('Chat message processing error:', error);
+      throw new Error(`Failed to process chat message: ${error.message}`);
+    }
   }
 
   /**
