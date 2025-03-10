@@ -12,19 +12,30 @@ class CodeGenerationAgent {
     try {
       console.log('Generating Deluge code based on requirements...');
       
+      // If requirements is an object with content property, extract it
+      let requirementsText = requirements;
+      if (typeof requirements === 'object' && requirements.content) {
+        requirementsText = requirements.content;
+      }
+      
       const systemPrompt = this._buildGenerateSystemPrompt();
-      const userPrompt = this._buildGenerateUserPrompt(requirements, context);
+      const userPrompt = this._buildGenerateUserPrompt(requirementsText, context);
       const response = await this._callClaudeAPI(systemPrompt, userPrompt);
       const generatedCode = this._parseGenerateResponse(response);
       
-      // Save the generated code to Google Drive
-      const fileName = `generated_code_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
-      await driveService.createOrUpdateFile(
-        fileName,
-        generatedCode,
-        'application/json',
-        'CodeSnippets'
-      );
+      try {
+        // Save the generated code to Google Drive
+        const fileName = `generated_code_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+        await driveService.createOrUpdateFile(
+          fileName,
+          generatedCode,
+          'application/json',
+          'CodeSnippets'
+        );
+      } catch (saveError) {
+        console.warn('Failed to save generated code to Drive:', saveError.message);
+        // Continue execution even if saving fails
+      }
       
       return generatedCode;
     } catch (error) {

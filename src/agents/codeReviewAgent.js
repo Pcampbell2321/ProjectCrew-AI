@@ -7,9 +7,16 @@ class CodeReviewAgent {
     this.baseUrl = 'https://api.anthropic.com/v1';
   }
 
-  async reviewCode(codeSnippet, language, requirements) {
+  async reviewCode(codeSnippet, language, requirements = {}) {
     try {
       console.log('Reviewing code...');
+      
+      // Handle different input formats
+      if (typeof requirements === 'string') {
+        requirements = { description: requirements };
+      } else if (typeof requirements !== 'object') {
+        requirements = {};
+      }
       
       const systemPrompt = this._buildSystemPrompt();
       const userPrompt = this._buildReviewPrompt(codeSnippet, language, requirements);

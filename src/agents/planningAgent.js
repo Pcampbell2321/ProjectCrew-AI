@@ -12,19 +12,35 @@ class PlanningAgent {
     try {
       console.log('Generating tasks from project summary...');
       
+      // If projectSummary is an object with content property, extract it
+      let summaryText = projectSummary;
+      if (typeof projectSummary === 'object') {
+        if (projectSummary.content) {
+          summaryText = projectSummary.content;
+        }
+        if (projectSummary.name) {
+          projectName = projectSummary.name;
+        }
+      }
+      
       const systemPrompt = this._buildSystemPrompt();
-      const userPrompt = this._buildUserPrompt(projectSummary);
+      const userPrompt = this._buildUserPrompt(summaryText);
       const response = await this._callClaudeAPI(systemPrompt, userPrompt);
       const tasks = this._parseResponse(response);
       
-      // Save the tasks to Google Drive
-      const tasksFileName = `${projectName.replace(/\s+/g, '_')}_tasks.json`;
-      await driveService.createOrUpdateFile(
-        tasksFileName,
-        tasks,
-        'application/json',
-        'Tasks'
-      );
+      try {
+        // Save the tasks to Google Drive
+        const tasksFileName = `${projectName.replace(/\s+/g, '_')}_tasks.json`;
+        await driveService.createOrUpdateFile(
+          tasksFileName,
+          tasks,
+          'application/json',
+          'Tasks'
+        );
+      } catch (saveError) {
+        console.warn('Failed to save tasks to Drive:', saveError.message);
+        // Continue execution even if saving fails
+      }
       
       return tasks;
     } catch (error) {

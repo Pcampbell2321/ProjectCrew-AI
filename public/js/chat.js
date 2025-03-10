@@ -86,9 +86,18 @@ async function sendMessage(message) {
   try {
     if (!message.trim()) return;
     
-    // Check for task command
-    const isTask = message.startsWith('/task') || message.startsWith('/process');
-    const cleanMessage = isTask ? message.replace(/^\/task\s*/i, '') : message;
+    // Check for special commands
+    const isCommand = message.startsWith('/');
+    let commandType = 'chat';
+    let cleanMessage = message;
+    
+    if (isCommand) {
+      const commandMatch = message.match(/^\/(\w+)\s+(.*)/);
+      if (commandMatch) {
+        commandType = commandMatch[1].toLowerCase();
+        cleanMessage = commandMatch[2];
+      }
+    }
     
     showTypingIndicator();
     const messageInput = document.getElementById('messageInput');
@@ -97,11 +106,7 @@ async function sendMessage(message) {
     const formData = new FormData();
     formData.append('message', cleanMessage);
     formData.append('sessionId', currentSessionId);
-    formData.append('isTask', isTask);
-    
-    // Specify agent type based on message type
-    const agentType = isTask ? 'task_agent' : 'chat_agent';
-    formData.append('agent', agentType);
+    formData.append('commandType', commandType);
     
     // Handle file attachments
     const fileInput = document.getElementById('fileAttachment');
@@ -116,9 +121,8 @@ async function sendMessage(message) {
       return;
     }
     
-    // Use different endpoints based on message type
-    const endpoint = isTask ? '/api/tasks/process' : '/api/chat/message';
-    const response = await fetch(endpoint, {
+    // Use unified endpoint for all message types
+    const response = await fetch('/api/chat/message', {
       method: 'POST',
       headers: {
         'X-CSRF-Token': csrfToken
@@ -135,46 +139,25 @@ async function sendMessage(message) {
     
     appendMessage('user', message, fileInput.files.length > 0 ? [{name: fileInput.files[0].name}] : []);
     
-    if (isTask) {
-      // Verify correct agent handled the task
-      if (data.agent !== 'task_processor') {
-        console.warn('Task handled by wrong agent:', data.agent);
-      }
-      
-      appendMessage('assistant', `
-        <div class="task-result">
-          <h4>Task Processed</h4>
-          <div class="task-meta">
-            <span>Model: ${data.model || 'Default'}</span>
-            <span>Complexity: ${data.complexity || 'Standard'}</span>
-            <span>Processing Time: ${data.duration || '0'}ms</span>
-            <span>Agent: ${data.agent || 'Unknown'}</span>
-          </div>
-          <div class="task-content">${data.response}</div>
+    // Display response with agent information
+    appendMessage('assistant', `
+      <div class="task-result">
+        <div class="task-meta">
+          <span>Agent: ${data.agent || 'AI Assistant'}</span>
+          <span>Operation: ${data.operation || 'chat'}</span>
+          <span>Time: ${new Date(data.timestamp).toLocaleTimeString()}</span>
         </div>
-      `);
-    } else {
-      // Verify correct agent handled the chat
-      if (data.agent !== 'chat_processor') {
-        console.warn('Chat handled by wrong agent:', data.agent);
-      }
-      
-      appendMessage('assistant', data.response);
-    }
+        <div class="task-content markdown-content">${data.formattedResponse || data.result}</div>
+      </div>
+    `);
     
     // Reset file input and message input
     fileInput.value = '';
     messageInput.value = '';
     
   } catch (error) {
-    // Enhanced error handling based on message type
-    if (isTask) {
-      showError(`Failed to process task: ${error.message}`);
-      console.error('Task processing error:', error);
-    } else {
-      showError(`Failed to send message: ${error.message}`);
-      console.error('Chat message error:', error);
-    }
+    showError(`Failed to process message: ${error.message}`);
+    console.error('Message processing error:', error);
   } finally {
     hideTypingIndicator();
     const messageInput = document.getElementById('messageInput');

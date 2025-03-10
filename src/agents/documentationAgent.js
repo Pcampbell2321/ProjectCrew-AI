@@ -21,12 +21,25 @@ class DocumentationAgent {
     }
   }
 
-  async generateDocumentation(topic, details, format = 'markdown') {
+  async generateDocumentation(topic, details = {}, format = 'markdown') {
     try {
       console.log('Generating new documentation...');
       
+      // Handle different input formats
+      if (typeof details === 'string') {
+        details = { content: details };
+      } else if (typeof details !== 'object') {
+        details = {};
+      }
+      
+      // If topic is an object with content, use that as the topic
+      let topicText = topic;
+      if (typeof topic === 'object' && topic.content) {
+        topicText = topic.content;
+      }
+      
       const systemPrompt = this._buildGenerateSystemPrompt(format);
-      const userPrompt = this._buildGenerateUserPrompt(topic, details, format);
+      const userPrompt = this._buildGenerateUserPrompt(topicText, details, format);
       const response = await this._callClaudeAPI(systemPrompt, userPrompt);
       return this._parseGenerateResponse(response);
     } catch (error) {

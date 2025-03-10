@@ -4,9 +4,15 @@ const driveService = require('../utils/googleDriveService');
 class ProjectUnderstandingAgent {
   constructor(apiKey) {
     this.apiKey = apiKey;
-    // Updated to match the sample API code
     this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
-    this.model = 'gemini-2.0-flash'; // Using the model from the sample
+    this.model = 'gemini-2.0-flash';
+    this.defaultResponse = {
+      goals: [],
+      requirements: [],
+      milestones: [],
+      stakeholders: [],
+      risks: []
+    };
   }
 
   async processDocument(documentNameOrId, isId = false) {

@@ -11,6 +11,11 @@ class MeetingActionItemAgent {
     try {
       console.log('Extracting action items from meeting transcript...');
       
+      // If transcript is an object with content property, extract it
+      if (typeof transcript === 'object' && transcript.content) {
+        transcript = transcript.content;
+      }
+      
       const systemPrompt = this._buildExtractSystemPrompt();
       const userPrompt = this._buildExtractUserPrompt(transcript, context);
       const response = await this._callClaudeAPI(systemPrompt, userPrompt);

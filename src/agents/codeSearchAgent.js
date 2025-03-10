@@ -43,12 +43,18 @@ class CodeSearchAgent {
     try {
       console.log('Searching code with query:', query);
       
+      // If query is an object with content property, extract it
+      let queryText = query;
+      if (typeof query === 'object' && query.content) {
+        queryText = query.content;
+      }
+      
       // In a real implementation, this would search the actual codebase
       // For now, we'll use the mock codebase
-      const relevantCode = this._searchMockCodebase(query);
+      const relevantCode = this._searchMockCodebase(queryText);
       
       const systemPrompt = this._buildSearchSystemPrompt();
-      const userPrompt = this._buildSearchUserPrompt(query, relevantCode, context);
+      const userPrompt = this._buildSearchUserPrompt(queryText, relevantCode, context);
       const response = await this._callClaudeAPI(systemPrompt, userPrompt);
       return this._parseSearchResponse(response);
     } catch (error) {
